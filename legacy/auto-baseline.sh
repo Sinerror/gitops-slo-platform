@@ -49,8 +49,8 @@ s5() {
 s6() {
   kubectl -n legacy port-forward --address 127.0.0.1 svc/frontend 9999:80 >/dev/null 2>&1 &
   PF=$!
-  local jar="$WORK/jar" code i
-  for i in $(seq 1 30); do curl -s -m 3 -o /dev/null http://127.0.0.1:9999/_healthz && break; sleep 1; done
+  local jar="$WORK/jar" code
+  for _ in $(seq 1 30); do curl -s -m 3 -o /dev/null http://127.0.0.1:9999/_healthz && break; sleep 1; done
   chk() { code=$(curl -s -m 90 -o /dev/null -w '%{http_code}' -b "$jar" -c "$jar" "$@"); echo "   $code ${*: -1}"; [ "$code" -lt 400 ]; }
   chk http://127.0.0.1:9999/
   chk -X POST -d product_id=OLJCESPC7Z -d quantity=1 http://127.0.0.1:9999/cart
