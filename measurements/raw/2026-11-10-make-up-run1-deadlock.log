@@ -1,0 +1,6 @@
+destroy start 2026-11-10T16:20:28Z
+[33m╵[0m[0m
+[0m[1m[32m
+Destroy complete! Resources: 3 destroyed.[0m
+destroy done 2026-11-10T16:20:45Z
+up.sh hung: sync-wave deadlock (secrets-config in wave 1, its consumers in wave 0); stopped manually at 2026-11-10T17:50Z after ~89 min

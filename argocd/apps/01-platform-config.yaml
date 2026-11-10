@@ -101,7 +101,11 @@ metadata:
   name: secrets-config
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    # Волна 0, а не 1: Grafana (kube-prometheus-stack) и SeaweedFS (backup-storage) из волны 0
+    # не стартуют без Secret'ов, которые создают эти ExternalSecret. При волне 1 подъём с нуля
+    # зависал навсегда: волна 0 не становилась Healthy, а волна 1 её ждала.
+    # Пока нет CRD External Secrets и OpenBao не инициализирован, синк падает и повторяется (retry).
+    argocd.argoproj.io/sync-wave: "0"
   finalizers: [resources-finalizer.argocd.argoproj.io]
 spec:
   project: platform
@@ -115,8 +119,9 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     retry:
-      limit: 10
-      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+      limit: 20
+      backoff: { duration: 15s, factor: 2, maxDuration: 1m }
+    syncOptions: [SkipDryRunOnMissingResource=true]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application

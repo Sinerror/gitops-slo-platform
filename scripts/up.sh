@@ -17,13 +17,27 @@ t_tf=$(( $(date +%s) - t0 ))
 echo ">> terraform: ${t_tf}s"
 
 echo ">> ждём OpenBao"
-until kubectl -n openbao get pod openbao-0 >/dev/null 2>&1; do sleep 5; done
+# Все ожидания — с дедлайном: первый замер с нуля провисел полтора часа на бесконечном until
+wait_for() { # wait_for <секунд> <описание> <команда...>
+  local t="$1" what="$2" end; shift 2; end=$(( $(date +%s) + t ))
+  until "$@" >/dev/null 2>&1; do
+    if [ "$(date +%s)" -ge "$end" ]; then
+      echo "ТАЙМАУТ (${t}s): $what" >&2
+      kubectl -n argocd get applications 2>&1 | head -30 >&2
+      kubectl get pods -A --no-headers 2>/dev/null | awk '$4!="Running"&&$4!="Completed"' >&2
+      exit 1
+    fi
+    sleep 5
+  done
+}
+wait_for 900 "под openbao-0 создан" kubectl -n openbao get pod openbao-0
 bash "$REPO_DIR/scripts/openbao-init.sh"
 
 # ESO к этому моменту уже несколько раз не смог прочитать секреты и ушёл в backoff —
 # пинаем все ExternalSecret, иначе ожидание Grafana/SeaweedFS/Velero растянется на минуты
 echo ">> force-sync ExternalSecrets"
-until kubectl get clustersecretstore openbao -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null | grep -q True; do sleep 5; done
+store_ready() { kubectl get clustersecretstore openbao -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' | grep -q True; }
+wait_for 600 "ClusterSecretStore openbao Ready" store_ready
 kubectl get externalsecret -A --no-headers -o custom-columns=NS:.metadata.namespace,N:.metadata.name \
   | while read -r ns name; do kubectl -n "$ns" annotate externalsecret "$name" force-sync="$(date +%s)" --overwrite >/dev/null; done
 
@@ -36,7 +50,7 @@ while :; do
   [ "$(date +%s)" -lt "$deadline" ] || { echo "не дождались:"; echo "$bad"; exit 1; }
   sleep 10
 done
-until curl -sf -o /dev/null http://localhost:18080/; do sleep 3; done
+wait_for 300 "магазин отвечает на :18080" curl -sf -o /dev/null http://localhost:18080/
 total=$(( $(date +%s) - t0 ))
 echo "$(date -u +%Y-%m-%dT%H:%M:%SZ),$t_tf,$(( total - t_tf )),$total" >> "$OUT"
 echo ">> стенд готов за ${total}s (terraform ${t_tf}s) -> $OUT"
