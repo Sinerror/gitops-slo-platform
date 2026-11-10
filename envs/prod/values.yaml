@@ -37,3 +37,6 @@ images:
     tag: "sha-0e77b45"
   orderConsumer:
     tag: "sha-0e77b45"
+
+orderConsumer:
+  processingDelayMs: 30000
