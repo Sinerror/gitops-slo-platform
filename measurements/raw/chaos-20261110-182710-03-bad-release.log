@@ -1,0 +1,7 @@
+2026-11-10T15:27:10Z [03-bad-release] inject: commit FAULT_ERROR_RATE=0.5 into envs/prod/values.yaml (MODE=git)
+2026-11-10T15:29:01Z [03-bad-release] ALERT firing: CheckoutErrorRateHigh
+2026-11-10T15:29:01Z [03-bad-release] mitigate: git revert b816342c6ac2dc22a0c753218cfe1fd522a771d4
+[main f0bd53e] Revert "prod: checkoutservice config change (chaos 03: bad release)"
+ Date: Tue Nov 10 18:29:01 2026 +0300
+ 1 file changed, 2 deletions(-)
+2026-11-10T15:39:15Z [03-bad-release] TIMEOUT: откат выкачен (FAULT_ERROR_RATE убран) (600s)

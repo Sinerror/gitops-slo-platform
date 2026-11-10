@@ -154,3 +154,22 @@ require_cluster() {
   kubectl get ns boutique-prod >/dev/null || { echo "кластер недоступен (KUBECONFIG?)" >&2; exit 1; }
   curl -s -o /dev/null "$AM_URL/-/ready" || { echo "Alertmanager недоступен: $AM_URL" >&2; exit 1; }
 }
+
+# Публикация коммита в Git с повторами. В первом прогоне сценария 03 `git push` отката упал
+# на DNS ("Could not resolve host: github.com"), скрипт этого не заметил и 10 минут ждал
+# выкатки коммита, которого на GitHub не было. Теперь: до 10 попыток, иначе — громкая ошибка.
+#   publish_git <argocd app>   (MODE=git | local)
+publish_git() {
+  local app="$1" i
+  if [ "${MODE:-git}" = git ]; then
+    for i in $(seq 1 10); do
+      if git -C "$REPO_DIR" pull --rebase -q && git -C "$REPO_DIR" push -q; then break; fi
+      log "git push не удался (попытка $i/10), повтор через 5 с"
+      [ "$i" -lt 10 ] || { log "ОШИБКА: коммит не опубликован — исправление НЕ доставлено"; return 1; }
+      sleep 5
+    done
+  else
+    bash "$REPO_DIR/hack/local-git-serve.sh" push >>"$LOG"
+  fi
+  kubectl -n argocd annotate application "$app" argocd.argoproj.io/refresh=normal --overwrite >/dev/null
+}

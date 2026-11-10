@@ -10,11 +10,7 @@ assert_quiet "KafkaConsumerLagHigh"
 MODE="${MODE:-git}"
 VALUES="$REPO_DIR/envs/prod/values.yaml"
 
-publish() {
-  if [ "$MODE" = git ]; then git -C "$REPO_DIR" pull --rebase -q && git -C "$REPO_DIR" push -q
-  else bash "$REPO_DIR/hack/local-git-serve.sh" push >>"$LOG"; fi
-  kubectl -n argocd annotate application boutique-prod argocd.argoproj.io/refresh=normal --overwrite >/dev/null
-}
+publish() { publish_git boutique-prod; }
 lag() { prom 'sum(kafka_consumergroup_lag{consumergroup="order-consumer",topic="orders"})'; }
 
 git -C "$REPO_DIR" diff --quiet -- "$VALUES" || { echo "в $VALUES есть незакоммиченные изменения" >&2; exit 1; }
