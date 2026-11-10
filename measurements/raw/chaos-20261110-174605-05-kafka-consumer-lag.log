@@ -1,0 +1,8 @@
+2026-11-10T14:46:05Z [05-kafka-consumer-lag] inject: orderConsumer.processingDelayMs=30000 (MODE=git), lag before: 0
+2026-11-10T15:06:12Z [05-kafka-consumer-lag] no alert from [KafkaConsumerLagHigh] within 1200s
+2026-11-10T15:06:14Z [05-kafka-consumer-lag] lag at alert: 
+2026-11-10T15:06:14Z [05-kafka-consumer-lag] mitigate: git revert 21666e69c0e5795b122434cc29cdcf0ccc39cac6
+[main d20d378] Revert "prod: order-consumer config change (chaos 05: slow consumer)"
+ Date: Tue Nov 10 18:06:14 2026 +0300
+ 1 file changed, 3 deletions(-)
+2026-11-10T15:21:23Z [05-kafka-consumer-lag] TIMEOUT: lag снова около нуля (900s)

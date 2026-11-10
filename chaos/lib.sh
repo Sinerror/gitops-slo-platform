@@ -20,16 +20,32 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Наблюдаем через kubectl port-forward (API-сервер на control-plane), а не через platform
 # Gateway: иначе авария на узле с Envoy ослепила бы сам замер.
+# port-forward живёт недолго: в сценарии 05 он тихо умер за 20 минут ожидания, и скрипт
+# не увидел алерт, который в Prometheus горел. Поэтому ensure_pf вызывается перед каждым
+# запросом и поднимает проброс заново, если он не отвечает.
+_PF_MANAGED=0; _PF_AM=""; _PF_PROM=""
 if [ -z "${AM_URL:-}" ] || [ -z "${PROM_URL:-}" ]; then
-  kubectl -n monitoring port-forward --address 127.0.0.1 svc/kube-prometheus-stack-alertmanager 19093:9093 >/dev/null 2>&1 &
-  _PF_AM=$!
-  kubectl -n monitoring port-forward --address 127.0.0.1 svc/kube-prometheus-stack-prometheus 19090:9090 >/dev/null 2>&1 &
-  _PF_PROM=$!
-  trap 'kill $_PF_AM $_PF_PROM 2>/dev/null || true' EXIT
+  _PF_MANAGED=1
   AM_URL=http://127.0.0.1:19093
   PROM_URL=http://127.0.0.1:19090
-  for _ in $(seq 1 20); do curl -s -o /dev/null "$AM_URL/-/ready" && curl -s -o /dev/null "$PROM_URL/-/ready" && break; sleep 0.5; done
+  trap 'kill $_PF_AM $_PF_PROM 2>/dev/null || true' EXIT
 fi
+ensure_pf() {
+  [ "$_PF_MANAGED" = 1 ] || return 0
+  if ! curl -s -m 3 -o /dev/null "$AM_URL/-/ready"; then
+    [ -n "$_PF_AM" ] && kill "$_PF_AM" 2>/dev/null || true
+    kubectl -n monitoring port-forward --address 127.0.0.1 svc/kube-prometheus-stack-alertmanager 19093:9093 >/dev/null 2>&1 &
+    _PF_AM=$!
+    for _ in $(seq 1 20); do curl -s -m 3 -o /dev/null "$AM_URL/-/ready" && break; sleep 0.5; done
+  fi
+  if ! curl -s -m 3 -o /dev/null "$PROM_URL/-/ready"; then
+    [ -n "$_PF_PROM" ] && kill "$_PF_PROM" 2>/dev/null || true
+    kubectl -n monitoring port-forward --address 127.0.0.1 svc/kube-prometheus-stack-prometheus 19090:9090 >/dev/null 2>&1 &
+    _PF_PROM=$!
+    for _ in $(seq 1 20); do curl -s -m 3 -o /dev/null "$PROM_URL/-/ready" && break; sleep 0.5; done
+  fi
+}
+ensure_pf
 RESULTS="$REPO_DIR/measurements/chaos-results.csv"
 RAW_DIR="$REPO_DIR/measurements/raw"
 mkdir -p "$RAW_DIR"
@@ -45,7 +61,8 @@ log() { echo "$(iso) [$SCENARIO] $*" | tee -a "$LOG"; }
 # Активные (не silenced/inhibited) алерты с одним из имён; печатает первое найденное
 firing_alert() {
   local names="$1" body
-  body="$(curl -s -G "$AM_URL/api/v2/alerts" --data-urlencode active=true \
+  ensure_pf
+  body="$(curl -s -m 10 -G "$AM_URL/api/v2/alerts" --data-urlencode active=true \
     --data-urlencode silenced=false --data-urlencode inhibited=false || true)"
   for n in $names; do
     if echo "$body" | grep -q "\"alertname\":\"$n\""; then echo "$n"; return 0; fi
@@ -79,7 +96,8 @@ wait_alert() {
 
 # Значение PromQL-скаляра (первая серия), пусто — если нет данных
 prom() {
-  curl -s -G "$PROM_URL/api/v1/query" --data-urlencode "query=$1" \
+  ensure_pf
+  curl -s -m 10 -G "$PROM_URL/api/v1/query" --data-urlencode "query=$1" \
     | grep -o '"value":\[[^]]*\]' | head -1 | sed -E 's/.*,"([^"]*)"\]/\1/'
 }
 
