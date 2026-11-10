@@ -15,6 +15,9 @@ real run on the local stand (kind, 4 nodes, 32 GB laptop), raw data in [`measure
 
 Highlights:
 - Cluster + ArgoCD from zero with `terraform apply`: **76 s** (kind node image already cached).
+- Whole stand from zero to a serving shop with one command (`make up`): **702 s**. The first attempt hung on a
+  sync-wave deadlock (wave-0 apps needed Secrets created in wave 1) that incremental bring-up had hidden; fixed.
+- Lead time for one real release: commit → staging **344 s**, commit → prod **728 s** (manual promote).
 - Found a real latency incident while bringing the stand up: the upstream frontend does a DNS lookup of
   `metadata.google.internal` on **every** home page request; with a degraded upstream resolver p95 was
   **4.02 s → 0.021 s** after a GitOps-managed CoreDNS fix ([postmortem 00](postmortems/00-dns-metadata-lookup.md)).

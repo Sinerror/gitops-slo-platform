@@ -14,7 +14,7 @@
 | Метрика | До (ручной деплой) | После | Как измерено |
 | --- | --- | --- | --- |
 | Подъём кластера + ArgoCD с нуля | — | **76 с** (образ узла kind уже в кэше Docker) | `terraform apply`, `measurements/raw/tf-apply-2.log` |
-| Подъём всего стенда до работающего магазина | — | _после публикации образов CI: `make up`_ | `measurements/bootstrap.csv` |
+| Подъём всего стенда до работающего магазина | — | **702 с** (11 мин 42 с): `terraform apply` 96 с + 606 с до состояния «все 20 приложений ArgoCD Synced/Healthy, магазин отвечает». Образы узлов уже были в кэше Docker, остальные скачивались заново. Первая попытка зависла на тупике в sync-волнах — найден и исправлен | `make up`, `measurements/bootstrap.csv`, логи обоих прогонов в `measurements/raw/` |
 | Lead time: коммит → staging (выкачено, smoke-тест пройден) | _`legacy/stopwatch.sh`_ | **344 с** — один релиз `sha-0699e29`: CI 86 с, остальное — опрос Git в ArgoCD, выкатка и smoke-тест | `make dora` (`scripts/dora.sh`) |
 | Lead time: коммит → prod | _`legacy/stopwatch.sh`_ | **728 с** — тот же релиз `sha-0699e29`; включает ожидание ручного запуска promote (через ~2 мин после готовности staging) и ~4 мин от коммита promote до конца синка prod | `make dora` |
 | p95 главной магазина (найденный инцидент) | 4.02 с | **0.021 с** | [постмортем 00](postmortems/00-dns-metadata-lookup.md) |

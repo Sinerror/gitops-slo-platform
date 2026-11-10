@@ -1,0 +1,308 @@
+destroy start 2026-11-10T17:49:06Z
+
+Destroy complete! Resources: 3 destroyed.
+up start 2026-11-10T17:49:21Z
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # module.argocd.helm_release.argocd will be created
+  + resource "helm_release" "argocd" {
+      + atomic                     = false
+      + chart                      = "argo-cd"
+      + cleanup_on_fail            = false
+      + create_namespace           = true
+      + dependency_update          = false
+      + disable_crd_hooks          = false
+      + disable_openapi_validation = false
+      + disable_webhooks           = false
+      + force_update               = false
+      + id                         = (known after apply)
+      + lint                       = false
+      + max_history                = 0
+      + metadata                   = (known after apply)
+      + name                       = "argocd"
+      + namespace                  = "argocd"
+      + pass_credentials           = false
+      + recreate_pods              = false
+      + render_subchart_notes      = true
+      + replace                    = false
+      + repository                 = "https://argoproj.github.io/argo-helm"
+      + reset_values               = false
+      + reuse_values               = false
+      + set_wo                     = (write-only attribute)
+      + skip_crds                  = false
+      + status                     = "deployed"
+      + take_ownership             = false
+      + timeout                    = 900
+      + upgrade_install            = false
+      + values                     = [
+          + <<-EOT
+                # Компактный ArgoCD для одного кластера. UI отдаётся через platform Gateway
+                # (argocd.localtest.me:18090), поэтому TLS терминируется не в argocd-server.
+                global:
+                  domain: argocd.localtest.me
+                
+                configs:
+                  params:
+                    server.insecure: true
+                    # Быстрее реагировать на коммиты (по умолчанию 180 с). Для lead time.
+                    timeout.reconciliation: 60s
+                  cm:
+                    # Учитывать health у Application-of-Applications
+                    resource.customizations.health.argoproj.io_Application: |
+                      hs = {}
+                      hs.status = "Progressing"
+                      hs.message = ""
+                      if obj.status ~= nil and obj.status.health ~= nil then
+                        hs.status = obj.status.health.status
+                        if obj.status.health.message ~= nil then
+                          hs.message = obj.status.health.message
+                        end
+                      end
+                      return hs
+                  rbac:
+                    policy.default: role:readonly
+                
+                dex:
+                  enabled: false
+                
+                notifications:
+                  enabled: false
+                
+                controller:
+                  metrics:
+                    enabled: true
+                    serviceMonitor:
+                      enabled: false # включается после установки kube-prometheus-stack (см. platform/monitoring)
+                
+                server:
+                  metrics:
+                    enabled: true
+                
+                repoServer:
+                  metrics:
+                    enabled: true
+            EOT,
+        ]
+      + verify                     = false
+      + version                    = "10.17.1"
+      + wait                       = true
+      + wait_for_jobs              = false
+    }
+
+  # module.argocd.helm_release.root_app will be created
+  + resource "helm_release" "root_app" {
+      + atomic                     = false
+      + chart                      = "argocd-apps"
+      + cleanup_on_fail            = false
+      + create_namespace           = false
+      + dependency_update          = false
+      + disable_crd_hooks          = false
+      + disable_openapi_validation = false
+      + disable_webhooks           = false
+      + force_update               = false
+      + id                         = (known after apply)
+      + lint                       = false
+      + max_history                = 0
+      + metadata                   = (known after apply)
+      + name                       = "root"
+      + namespace                  = "argocd"
+      + pass_credentials           = false
+      + recreate_pods              = false
+      + render_subchart_notes      = true
+      + replace                    = false
+      + repository                 = "https://argoproj.github.io/argo-helm"
+      + reset_values               = false
+      + reuse_values               = false
+      + set_wo                     = (write-only attribute)
+      + skip_crds                  = false
+      + status                     = "deployed"
+      + take_ownership             = false
+      + timeout                    = 300
+      + upgrade_install            = false
+      + values                     = [
+          + <<-EOT
+                "applications":
+                  "root":
+                    "destination":
+                      "namespace": "argocd"
+                      "server": "https://kubernetes.default.svc"
+                    "namespace": "argocd"
+                    "project": "platform"
+                    "source":
+                      "directory":
+                        "recurse": true
+                      "path": "argocd/apps"
+                      "repoURL": "https://github.com/Sinerror/gitops-slo-platform.git"
+                      "targetRevision": "main"
+                    "syncPolicy":
+                      "automated":
+                        "prune": true
+                        "selfHeal": true
+                "projects":
+                  "boutique":
+                    "clusterResourceWhitelist":
+                    - "group": ""
+                      "kind": "Namespace"
+                    "description": "Приложение Online Boutique (staging, prod)"
+                    "destinations":
+                    - "namespace": "boutique-staging"
+                      "server": "https://kubernetes.default.svc"
+                    - "namespace": "boutique-prod"
+                      "server": "https://kubernetes.default.svc"
+                    "namespace": "argocd"
+                    "namespaceResourceBlacklist":
+                    - "group": ""
+                      "kind": "ResourceQuota"
+                    "sourceRepos":
+                    - "https://github.com/Sinerror/gitops-slo-platform.git"
+                  "platform":
+                    "clusterResourceWhitelist":
+                    - "group": "*"
+                      "kind": "*"
+                    "description": "Платформенные компоненты (gateway, мониторинг, kafka, секреты
+                      (OpenBao), бэкапы)"
+                    "destinations":
+                    - "namespace": "*"
+                      "server": "https://kubernetes.default.svc"
+                    "namespace": "argocd"
+                    "sourceRepos":
+                    - "*"
+            EOT,
+        ]
+      + verify                     = false
+      + version                    = "2.0.7"
+      + wait                       = true
+      + wait_for_jobs              = false
+    }
+
+  # module.cluster.kind_cluster.this will be created
+  + resource "kind_cluster" "this" {
+      + client_certificate     = (known after apply)
+      + client_key             = (known after apply)
+      + cluster_ca_certificate = (known after apply)
+      + completed              = (known after apply)
+      + context_name           = (known after apply)
+      + endpoint               = (known after apply)
+      + id                     = (known after apply)
+      + kubeconfig             = (known after apply)
+      + kubeconfig_path        = "C:\\Users\\1\\.kube\\kind-gitops-slo"
+      + name                   = "gitops-slo"
+      + node_image             = "kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed"
+      + wait_for_ready         = true
+
+      + kind_config {
+          + api_version = "kind.x-k8s.io/v1alpha4"
+          + kind        = "Cluster"
+
+          + node {
+              + role = "control-plane"
+
+              + extra_port_mappings {
+                  + container_port = 30080
+                  + host_port      = 18080
+                  + listen_address = "127.0.0.1"
+                  + protocol       = "TCP"
+                }
+              + extra_port_mappings {
+                  + container_port = 30443
+                  + host_port      = 18443
+                  + listen_address = "127.0.0.1"
+                  + protocol       = "TCP"
+                }
+              + extra_port_mappings {
+                  + container_port = 30081
+                  + host_port      = 18081
+                  + listen_address = "127.0.0.1"
+                  + protocol       = "TCP"
+                }
+              + extra_port_mappings {
+                  + container_port = 30090
+                  + host_port      = 18090
+                  + listen_address = "127.0.0.1"
+                  + protocol       = "TCP"
+                }
+            }
+          + node {
+              + labels = {
+                  + "topology.kubernetes.io/zone" = "zone-0"
+                }
+              + role   = "worker"
+            }
+          + node {
+              + labels = {
+                  + "topology.kubernetes.io/zone" = "zone-1"
+                }
+              + role   = "worker"
+            }
+          + node {
+              + labels = {
+                  + "topology.kubernetes.io/zone" = "zone-2"
+                }
+              + role   = "worker"
+            }
+        }
+    }
+
+Plan: 3 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + kubeconfig_path = "C:\\Users\\1\\.kube\\kind-gitops-slo"
+  + urls            = {
+      + argocd       = "http://argocd.localtest.me:18090"
+      + grafana      = "http://grafana.localtest.me:18090"
+      + shop_prod    = "http://shop.localtest.me:18080"
+      + shop_staging = "http://staging.localtest.me:18081"
+    }
+module.cluster.kind_cluster.this: Creating...
+module.cluster.kind_cluster.this: Still creating... [00m10s elapsed]
+module.cluster.kind_cluster.this: Still creating... [00m20s elapsed]
+module.cluster.kind_cluster.this: Still creating... [00m30s elapsed]
+module.cluster.kind_cluster.this: Creation complete after 33s [id=gitops-slo-kindest/node:v1.36.4@sha256:099e049362a1526b2db71494e1947aae99bd16290d7c895f2b7ea312e3cbfaed]
+module.argocd.helm_release.argocd: Creating...
+module.argocd.helm_release.argocd: Still creating... [00m10s elapsed]
+module.argocd.helm_release.argocd: Still creating... [00m20s elapsed]
+module.argocd.helm_release.argocd: Still creating... [00m30s elapsed]
+module.argocd.helm_release.argocd: Still creating... [00m40s elapsed]
+module.argocd.helm_release.argocd: Creation complete after 50s [id=argocd]
+module.argocd.helm_release.root_app: Creating...
+module.argocd.helm_release.root_app: Creation complete after 1s [id=root]
+
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+kubeconfig_path = "C:\\Users\\1\\.kube\\kind-gitops-slo"
+urls = {
+  "argocd" = "http://argocd.localtest.me:18090"
+  "grafana" = "http://grafana.localtest.me:18090"
+  "shop_prod" = "http://shop.localtest.me:18080"
+  "shop_staging" = "http://staging.localtest.me:18081"
+}
+>> terraform: 96s
+>> ждём OpenBao
+>> waiting for openbao-0
+pod/openbao-0 condition met
+>> operator init
+>> unseal
+>> kv-v2 и kubernetes auth
+Success! Enabled the kv-v2 secrets engine at: kv/
+Success! Enabled kubernetes auth method at: kubernetes/
+>> секреты
+   kv/platform/grafana создан
+   kv/platform/backup-s3 создан
+>> готово
+>> force-sync ExternalSecrets
+>> ждём, пока все приложения ArgoCD станут Synced/Healthy
+>> стенд готов за 702s (terraform 96s) -> /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/bootstrap.csv
+{
+  "argocd" = "http://argocd.localtest.me:18090"
+  "grafana" = "http://grafana.localtest.me:18090"
+  "shop_prod" = "http://shop.localtest.me:18080"
+  "shop_staging" = "http://staging.localtest.me:18081"
+}
+up exit 0 2026-11-10T18:01:03Z
