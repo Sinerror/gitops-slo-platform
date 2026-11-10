@@ -34,6 +34,6 @@ services:
 
 images:
   checkoutservice:
-    tag: "sha-0e77b45"
+    tag: "sha-0699e29"
   orderConsumer:
-    tag: "sha-0e77b45"
+    tag: "sha-0699e29"
