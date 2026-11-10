@@ -1,0 +1,9 @@
+date,step,seconds
+2026-11-10T18:21:04Z,"1. docker build (scripted)",31
+2026-11-10T18:21:07Z,"2. kind load docker-image (scripted)",3
+2026-11-10T18:21:17Z,"3. скачать и поправить манифесты (scripted)",10
+2026-11-10T18:21:19Z,"4. kubectl apply (scripted)",2
+2026-11-10T18:21:51Z,"5. дождаться подов (scripted)",32
+2026-11-10T18:22:52Z,"6. ручная проверка магазина (scripted)",61
+2026-11-10T18:22:52Z,"7. запись в журнал релизов (scripted)",0
+2026-11-10T18:22:52Z,"TOTAL manual deploy (scripted lower bound)",139
