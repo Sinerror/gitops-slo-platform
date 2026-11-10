@@ -7,3 +7,4 @@ date,scenario,first_alert,mttd_s,mttr_s,user_errors_5xx,notes
 2026-11-10T15:07:30Z,05-kafka-consumer-lag,KafkaConsumerLagHigh,685,1285,20,"run 1: alert fired in Prometheus at 14:57:30 but script missed it (port-forward to Alertmanager died), reverted only on 1200s timeout; lag peak 132; numbers from Prometheus"
 2026-11-10T15:39:45Z,03-bad-release,CheckoutErrorRateHigh,111,755,34,"run 1: alert and git revert at 111 s, but git push of the revert failed (DNS: could not resolve github.com) and the script did not notice; pushed manually at 15:39:29; MTTR/5xx from Prometheus"
 2026-11-10T15:45:57Z,05-kafka-consumer-lag,KafkaConsumerLagHigh,276,304,5,"slow consumer config release; rollback = git revert (git)"
+2026-11-10T15:49:20Z,03-bad-release,CheckoutErrorRateHigh,127,145,15,"bad config release via GitOps; rollback = git revert (git)"

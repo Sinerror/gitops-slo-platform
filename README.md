@@ -17,8 +17,8 @@
 | Подъём всего стенда до работающего магазина | — | _после публикации образов CI: `make up`_ | `measurements/bootstrap.csv` |
 | Lead time: коммит → прод | _`legacy/stopwatch.sh`_ | _после первых релизов CI: `make dora`_ | `scripts/dora.sh` |
 | p95 главной магазина (найденный инцидент) | 4.02 с | **0.021 с** | [постмортем 00](postmortems/00-dns-metadata-lookup.md) |
-| Обнаружение аварий (MTTD) | _по условию задачи: от клиентов (не замер)_ | **130–141 с** в 3 прогонах, где алерт должен был сработать (02, 04 ×2) | `measurements/chaos-results.csv` |
-| Восстановление (MTTR) | _по условию задачи: ~1 ч (не замер)_ | **17–155 с** в 4 из 5 прогонов; первый прогон 04 — **~15.5 мин** из-за бага в нашем инструменте восстановления ([постмортем 04](postmortems/04-redis-disk-full.md)) | `measurements/chaos-results.csv` |
+| Обнаружение аварий (MTTD) | _по условию задачи: от клиентов (не замер)_ | **111–141 с** в 5 прогонах сценариев 02, 03, 04; Kafka lag (05) — **276 и 685 с**, зависит от потока заказов | `measurements/chaos-results.csv` |
+| Восстановление (MTTR) | _по условию задачи: ~1 ч (не замер)_ | **17–304 с** в 6 чистых прогонах из 9. В первых прогонах 03, 04 и 05 — **12.5–21 мин**: каждый раз подвёл наш собственный инструмент восстановления (постмортемы [03](postmortems/03-bad-release.md), [04](postmortems/04-redis-disk-full.md), [05](postmortems/05-kafka-consumer-lag.md)) | `measurements/chaos-results.csv` |
 | Восстановление namespace из бэкапа | — | **12 с** restore, **36 с** до работающего магазина, данные корзины на месте | `measurements/backup-restore.csv` |
 | Trivy-гейт (HIGH/CRITICAL) | — | исходные образы: 7 + 4 HIGH CVE → exit 1; после обновления Go 1.27.3 и зависимостей → 0 | локальный прогон той же команды, что в CI: `measurements/raw/2026-11-09-trivy.txt` |
 <!-- RESULTS:END -->
@@ -78,15 +78,17 @@ Burn-rate алерты защищают бюджет; для быстрого о
 | 01 | Падение всех подов frontend | нет (в пределах бюджета) | — | 21 с | ≈19 | [01](postmortems/01-pod-kill.md) |
 | 01 | …повтор после retry + outlier detection в Envoy | нет | — | 17 с | ≈11 | [01](postmortems/01-pod-kill.md) |
 | 02 | Падение worker-узла | `NodeNotReady` | 141 с | 155 с | ≈78 | [02](postmortems/02-node-down.md) |
-| 03 | Плохой релиз (50% ошибок checkout) | _после публикации репозитория_ | | | | |
+| 03 | Плохой релиз (50% ошибок checkout), прогон 1 | `CheckoutErrorRateHigh` | 111 с | 755 с — `git push` отката упал на DNS, скрипт не заметил | ≈34 | [03](postmortems/03-bad-release.md) |
+| 03 | …прогон 2 (публикация с повторами) | `CheckoutErrorRateHigh` | 127 с | 145 с | ≈15 | [03](postmortems/03-bad-release.md) |
 | 04 | Заполнен диск БД корзин (Redis), прогон 1 | `RedisAOFWriteFailing` | 141 с | ~15.5 мин — исправление молча не сработало | ≈304 | [04](postmortems/04-redis-disk-full.md) |
 | 04 | …прогон 2 (инструмент исправлен) | `RedisAOFWriteFailing` | 130 с | 131 с | ≈18 | [04](postmortems/04-redis-disk-full.md) |
-| 05 | Отставание consumer Kafka | _после публикации репозитория_ | | | | |
+| 05 | Отставание consumer Kafka, прогон 1 | `KafkaConsumerLagHigh` | 685 с | 1285 с — скрипт не увидел сработавший алерт | ≈20 | [05](postmortems/05-kafka-consumer-lag.md) |
+| 05 | …прогон 2 (инструмент исправлен) | `KafkaConsumerLagHigh` | 276 с | 304 с | ≈5 | [05](postmortems/05-kafka-consumer-lag.md) |
 <!-- CHAOS:END -->
 
 \* `sum(increase(envoy_http_downstream_rq_xx{code_class="5"}[окно]))` — оценка Prometheus, по одному прогону на строку.
-Сценарии 03 и 05 выкатывают «плохую» конфигурацию коммитом в этот репозиторий и откатывают `git revert`,
-поэтому запускаются после его публикации.
+Сценарии 03 и 05 выкатывают «плохую» конфигурацию коммитом в этот репозиторий и откатывают `git revert` —
+эти коммиты видны в истории `main`. MTTD у них отсчитывается от коммита, то есть включает доставку релиза.
 
 MTTD — от внесения аварии до алерта в Alertmanager; MTTR — до восстановления. Скрипты: [`chaos/`](chaos/).
 

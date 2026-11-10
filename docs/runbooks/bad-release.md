@@ -12,7 +12,11 @@ cd gitops-slo-platform
 git log --oneline -5 -- envs/prod          # найти коммит релиза ("prod: sha-xxxxxxx" или правку values)
 git revert --no-edit <commit>
 git push
+git status -sb                              # "## main...origin/main" без [ahead N]
 ```
+
+Откат не считается сделанным, пока коммит не на `origin/main`: в учебной аварии 03 `git push`
+упал на DNS, и prod оставался сломанным ещё 10 минут ([постмортем 03](../../postmortems/03-bad-release.md)).
 
 ArgoCD подхватит изменение (опрос раз в 60 с; можно ускорить кнопкой Refresh в UI).
 Альтернатива для образов — workflow **promote** в gitops-slo-app с тегом предыдущей версии.

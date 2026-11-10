@@ -18,6 +18,11 @@ Highlights:
 - Found a real latency incident while bringing the stand up: the upstream frontend does a DNS lookup of
   `metadata.google.internal` on **every** home page request; with a degraded upstream resolver p95 was
   **4.02 s → 0.021 s** after a GitOps-managed CoreDNS fix ([postmortem 00](postmortems/00-dns-metadata-lookup.md)).
+- Five chaos scenarios, nine runs: clean runs recover in **17–304 s**; alerts fire in **111–141 s** for
+  node, bad-release and Redis failures. The first runs of 03, 04 and 05 took 12.5–21 min because our own
+  remediation tooling failed silently (path conversion, a missed alert, a failed `git push`) — each is
+  written up in a postmortem ([03](postmortems/03-bad-release.md), [04](postmortems/04-redis-disk-full.md),
+  [05](postmortems/05-kafka-consumer-lag.md)) and fixed.
 - The Trivy gate (same command as in CI, run locally before the first push) failed the first two images
   (7 + 4 HIGH CVEs in Go stdlib / x/net / compress); after bumping the builder and dependencies — 0.
 
