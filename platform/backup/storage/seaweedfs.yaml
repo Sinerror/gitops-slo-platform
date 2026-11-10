@@ -1,0 +1,125 @@
+# S3-совместимое хранилище для бэкапов Velero внутри кластера.
+# SeaweedFS вместо MinIO: MinIO перестал публиковать официальные образы (10.2025).
+# В облаке здесь был бы Yandex Object Storage.
+# Ключи доступа приходят из Vault через ExternalSecret backup-s3 (platform/secrets).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: seaweedfs
+  namespace: backup-storage
+spec:
+  serviceName: seaweedfs
+  replicas: 1
+  selector:
+    matchLabels: { app: seaweedfs }
+  template:
+    metadata:
+      labels: { app: seaweedfs }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      initContainers:
+        # S3-identity собирается из секрета при старте, в Git ключей нет
+        - name: s3-config
+          image: chrislusf/seaweedfs:4.53
+          command: [sh, -c]
+          args:
+            - |
+              cat > /config/s3.json <<EOF
+              {"identities":[{"name":"velero","credentials":[{"accessKey":"$ACCESS_KEY","secretKey":"$SECRET_KEY"}],"actions":["Admin","Read","Write","List","Tagging"]}]}
+              EOF
+          env:
+            - name: ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: backup-s3, key: access-key } }
+            - name: SECRET_KEY
+              valueFrom: { secretKeyRef: { name: backup-s3, key: secret-key } }
+          volumeMounts: [{ name: config, mountPath: /config }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:4.53
+          args:
+            - server
+            - -dir=/data
+            - -s3
+            - -s3.port=8333
+            - -s3.config=/config/s3.json
+            - -master.volumeSizeLimitMB=256
+            - -volume.max=20
+          ports:
+            - { name: s3, containerPort: 8333 }
+            - { name: master, containerPort: 9333 }
+          readinessProbe:
+            tcpSocket: { port: s3 }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: config, mountPath: /config }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      volumes:
+        - name: config
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seaweedfs
+  namespace: backup-storage
+spec:
+  selector: { app: seaweedfs }
+  ports:
+    - { name: s3, port: 8333, targetPort: s3 }
+    - { name: master, port: 9333, targetPort: master }
+---
+# Создать бакет velero после каждого sync (идемпотентно)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-bucket
+  namespace: backup-storage
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: aws
+          image: amazon/aws-cli:2.31.0
+          command: [sh, -c]
+          args:
+            - |
+              aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket velero 2>/dev/null \
+                || aws --endpoint-url http://seaweedfs:8333 s3 mb s3://velero
+          env:
+            - { name: HOME, value: /tmp }
+            - { name: AWS_DEFAULT_REGION, value: us-east-1 }
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: backup-s3, key: access-key } }
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: backup-s3, key: secret-key } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }

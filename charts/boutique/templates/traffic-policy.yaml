@@ -1,0 +1,32 @@
+{{- if .Values.trafficPolicy.enabled }}
+# Устойчивость на Gateway (action item постмортема 01):
+#  - retry только для отказов ДО отправки запроса (connect-failure, reset-before-request,
+#    refused-stream) — безопасно и для неидемпотентного POST /cart/checkout;
+#  - пассивные health checks: эндпоинт, вернувший подряд N ошибок шлюза, исключается.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: frontend-resilience
+  labels:
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: frontend
+  retry:
+    numRetries: {{ .Values.trafficPolicy.retries }}
+    retryOn:
+      triggers: [connect-failure, reset-before-request, refused-stream]
+    perRetry:
+      backOff:
+        baseInterval: 100ms
+        maxInterval: 1s
+  healthCheck:
+    passive:
+      consecutiveGatewayErrors: 3
+      consecutiveLocalOriginFailures: 3
+      interval: 2s
+      baseEjectionTime: 10s
+      maxEjectionPercent: 100
+{{- end }}

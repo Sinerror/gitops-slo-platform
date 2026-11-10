@@ -1,0 +1,6 @@
+2026-11-09T14:44:32Z [04-redis-disk-full] inject: fill /data on redis-cart-76485c7456-q8xhp
+67072000 bytes (64.0MB) copied, 0.020942 seconds, 3.0GB/s
+tmpfs                    64.0M     64.0M         0 100% /data
+2026-11-09T14:46:53Z [04-redis-disk-full] ALERT firing: RedisAOFWriteFailing
+2026-11-09T14:46:53Z [04-redis-disk-full] mitigate: rm /data/fill.bin
+2026-11-09T14:51:54Z [04-redis-disk-full] TIMEOUT: Redis снова пишет AOF и корзина работает (300s)

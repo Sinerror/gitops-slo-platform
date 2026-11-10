@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: velero
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  sources:
+    - repoURL: https://vmware-tanzu.github.io/helm-charts
+      chart: velero
+      targetRevision: 12.2.4
+      helm:
+        valueFiles: [$values/platform/backup/velero.values.yaml]
+    - repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: velero
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]

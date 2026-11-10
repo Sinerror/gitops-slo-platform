@@ -1,0 +1,13 @@
+# registry.terraform.io недоступен из РФ/РК (trade controls). Зеркало провайдеров
+# Yandex Cloud: https://yandex.cloud/ru/docs/tutorials/infrastructure-management/terraform-quickstart
+# Используется через Makefile: TF_CLI_CONFIG_FILE=terraform/terraformrc.mirror
+# В CI (GitHub Actions) не нужен.
+provider_installation {
+  network_mirror {
+    url     = "https://terraform-mirror.yandexcloud.net/"
+    include = ["registry.terraform.io/*/*"]
+  }
+  direct {
+    exclude = ["registry.terraform.io/*/*"]
+  }
+}

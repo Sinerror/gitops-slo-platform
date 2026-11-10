@@ -1,0 +1,6 @@
+date,scenario,first_alert,mttd_s,mttr_s,user_errors_5xx,notes
+2026-11-09T14:44:07Z,01-pod-kill,none,,21,19,kill all frontend pods; self-healed by Deployment
+2026-11-09T15:00:00Z,04-redis-disk-full,RedisAOFWriteFailing,141,928,304,"run 1: mitigation silently failed (Git Bash path conversion in kubectl exec rm); fixed manually ~15:00; MTTR/5xx from Prometheus, script aborted before record"
+2026-11-09T15:23:06Z,04-redis-disk-full,RedisAOFWriteFailing,130,131,18,tmpfs /data filled; mitigation rm junk file
+2026-11-09T15:27:43Z,02-node-down,NodeNotReady,141,155,78,docker stop gitops-slo-worker; mitigation docker start after alert
+2026-11-09T15:37:20Z,01-pod-kill,none,,17,11,kill all frontend pods; self-healed by Deployment

@@ -1,0 +1,51 @@
+{{- if .Values.loadgenerator.enabled }}
+# Синтетические пользователи (Locust из апстрима). Ходят через Gateway, а не
+# напрямую в frontend: SLI считается по метрикам Envoy, как для реальных клиентов.
+{{- $target := printf "envoy-%s.envoy-gateway-system.svc.cluster.local:80" .Values.gateway.name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgenerator
+  labels:
+    app: loadgenerator
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: loadgenerator
+  template:
+    metadata:
+      labels:
+        app: loadgenerator
+        {{- include "boutique.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 5
+      restartPolicy: Always
+      securityContext:
+        {{- include "boutique.podSecurityContext" . | nindent 8 }}
+      initContainers:
+        - name: wait-gateway
+          image: busybox:1.37.0
+          command: [sh, -c]
+          args:
+            - until wget -q -O /dev/null -T 2 "http://{{ $target }}/_healthz"; do echo waiting; sleep 3; done
+          securityContext:
+            {{- include "boutique.containerSecurityContext" . | nindent 12 }}
+      containers:
+        - name: main
+          image: {{ .Values.upstream.registry }}/loadgenerator:{{ .Values.upstream.tag }}
+          securityContext:
+            {{- include "boutique.containerSecurityContext" . | nindent 12 }}
+          env:
+            - name: FRONTEND_ADDR
+              value: {{ $target | quote }}
+            - name: USERS
+              value: {{ .Values.loadgenerator.users | quote }}
+            - name: RATE
+              value: {{ .Values.loadgenerator.rate | quote }}
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { memory: 512Mi }
+{{- end }}

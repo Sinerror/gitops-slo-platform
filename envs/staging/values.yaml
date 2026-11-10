@@ -1,0 +1,18 @@
+# staging: 1 реплика, без нагрузки, отдельный топик Kafka.
+# Теги images.* обновляет CI репозитория gitops-slo-app автоматически на каждый push в main.
+environment: staging
+
+gateway:
+  name: staging
+
+kafka:
+  topic: orders-staging
+
+orderConsumer:
+  group: order-consumer-staging
+
+images:
+  checkoutservice:
+    tag: "dev"
+  orderConsumer:
+    tag: "dev"

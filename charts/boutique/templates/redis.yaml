@@ -1,0 +1,94 @@
+# Хранилище корзин. AOF включён: каждая запись в корзину пишется на диск /data.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-cart
+  labels:
+    app: redis-cart
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: redis-cart
+  template:
+    metadata:
+      labels:
+        app: redis-cart
+        {{- include "boutique.labels" . | nindent 8 }}
+      annotations:
+        # Velero (файловый бэкап Kopia) забирает содержимое тома с данными
+        backup.velero.io/backup-volumes: redis-data
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "boutique.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          args: [--appendonly, "yes", --appendfsync, everysec, --dir, /data]
+          securityContext:
+            {{- include "boutique.containerSecurityContext" . | nindent 12 }}
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            periodSeconds: 5
+            tcpSocket: { port: 6379 }
+          livenessProbe:
+            periodSeconds: 5
+            tcpSocket: { port: 6379 }
+          resources:
+            {{- toYaml .Values.redis.resources | nindent 12 }}
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+        # Метрики Redis: redis_aof_last_write_status, память, клиенты — для алерта RedisAOFWriteFailing
+        - name: exporter
+          image: {{ .Values.redis.exporterImage }}
+          securityContext:
+            {{- include "boutique.containerSecurityContext" . | nindent 12 }}
+          env:
+            - name: REDIS_ADDR
+              value: redis://127.0.0.1:6379
+          ports:
+            - name: metrics
+              containerPort: 9121
+          resources:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits: { memory: 64Mi }
+      volumes:
+        - name: redis-data
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.redis.dataSizeLimit }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: redis-cart
+  labels:
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: redis-cart
+  podMetricsEndpoints:
+    - port: metrics
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-cart
+  labels:
+    app: redis-cart
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: redis-cart
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379

@@ -1,0 +1,115 @@
+# Prometheus + Alertmanager + Grafana, урезанные под локальный kind.
+fullnameOverride: kube-prometheus-stack
+
+# Компоненты control plane в kind слушают только 127.0.0.1 — их не скрейпим,
+# иначе получим вечные ложные алерты TargetDown.
+kubeEtcd: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeControllerManager: { enabled: false }
+kubeProxy: { enabled: false }
+
+defaultRules:
+  rules:
+    etcd: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeControllerManager: false
+    kubeProxy: false
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    retentionSize: 8GB
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    # Подхватывать ServiceMonitor/PodMonitor/PrometheusRule из всех namespace без меток релиза
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 200m, memory: 1Gi }
+      limits: { memory: 2Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: local
+      group_by: [alertname, namespace, slo]
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 4h
+      routes:
+        - receiver: "null"
+          matchers: [alertname = "Watchdog"]
+        - receiver: "null"
+          matchers: [alertname = "InfoInhibitor"]
+        # Сюда подключается Telegram (см. docs/telegram-alerts.md)
+        - receiver: local
+          matchers: [severity =~ "critical|page"]
+          continue: false
+    inhibit_rules:
+      - source_matchers: [severity = "critical"]
+        target_matchers: [severity = "warning"]
+        equal: [namespace, alertname]
+    receivers:
+      - name: "null"
+      - name: local
+
+grafana:
+  # Пароль администратора приходит из Vault через External Secrets (см. platform/secrets)
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  grafana.ini:
+    server:
+      root_url: http://grafana.localtest.me:18090
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+  persistence:
+    enabled: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.logging.svc
+      jsonData:
+        maxLines: 1000
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 10m, memory: 64Mi }
+
+prometheusOperator:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }

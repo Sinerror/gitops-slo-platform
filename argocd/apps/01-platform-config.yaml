@@ -1,0 +1,143 @@
+# Наши собственные манифесты поверх операторов: Gateway, issuers, SLO-правила,
+# дашборды, Kafka-кластер, ClusterSecretStore, объектное хранилище для бэкапов.
+# Волна 1 — после того как операторы и их CRD установлены в волне 0.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: platform/gateway/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gateway
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: platform/cert-manager/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: platform/monitoring/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+    syncOptions: [ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafka-cluster
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: platform/kafka/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kafka
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: secrets-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: platform/secrets/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-secrets
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backup-storage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: platform/backup/storage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backup-storage
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+    syncOptions: [CreateNamespace=true]

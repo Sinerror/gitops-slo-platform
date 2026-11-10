@@ -1,0 +1,17 @@
+# Remote state в Yandex Object Storage. Бакет создаётся один раз вручную:
+#   yc storage bucket create --name <имя-бакета>
+# Ключи статического доступа — через AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY,
+# не в этом файле.
+bucket = "<имя-бакета>"
+key    = "gitops-slo/yandex.tfstate"
+region = "ru-central1"
+
+endpoints = {
+  s3 = "https://storage.yandexcloud.net"
+}
+
+skip_region_validation      = true
+skip_credentials_validation = true
+skip_requesting_account_id  = true
+skip_s3_checksum            = true
+use_lockfile                = true

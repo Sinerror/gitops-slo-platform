@@ -1,0 +1,80 @@
+# RBAC для людей (сервис-аккаунты приложений — в чарте, без доступа к API).
+# Группы приходят из OIDC/сертификатов; в kind проверяется через impersonation:
+#   kubectl auth can-i delete pod -n boutique-prod --as=dev@example.com --as-group=boutique-developers
+#
+#   boutique-developers — читают всё в boutique-*, логи; не меняют (изменения только через Git)
+#   boutique-oncall     — плюс аварийные действия в prod: удалить под, перезапустить/масштабировать
+#                         Deployment, exec для диагностики. Секреты не читают.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: boutique-developer
+rules:
+  - apiGroups: ["", apps, batch, policy, networking.k8s.io, gateway.networking.k8s.io, monitoring.coreos.com]
+    resources: [pods, pods/log, services, endpoints, configmaps, events, deployments, replicasets,
+                jobs, poddisruptionbudgets, networkpolicies, httproutes, podmonitors]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: boutique-oncall
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+  - apiGroups: [apps]
+    resources: [deployments, deployments/scale]
+    verbs: [patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: boutique-developers
+  namespace: boutique-staging
+subjects:
+  - kind: Group
+    name: boutique-developers
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: boutique-oncall
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: boutique-developer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: boutique-developers
+  namespace: boutique-prod
+subjects:
+  - kind: Group
+    name: boutique-developers
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: boutique-oncall
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: boutique-developer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: boutique-oncall
+  namespace: boutique-prod
+subjects:
+  - kind: Group
+    name: boutique-oncall
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: boutique-oncall
+  apiGroup: rbac.authorization.k8s.io

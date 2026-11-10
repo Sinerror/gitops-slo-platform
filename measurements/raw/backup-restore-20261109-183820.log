@@ -1,0 +1,11 @@
+15:38:20 1. marker: add 66VCHSJNUP to cart of session restore-check-20261109-183820
+15:38:22 2. velero backup
+15:38:30    backup completed in 8s
+15:38:30 3. disable ArgoCD auto-sync (root + boutique-prod) and delete namespace boutique-prod
+15:38:45    namespace deleted; shop: 404
+15:38:45 4. velero restore
+15:38:56    restore completed in 11s
+15:39:20    shop OK 35s after restore start
+15:39:20 5. data check
+15:39:35    marker in cart after restore: no
+15:39:35 6. re-enable ArgoCD auto-sync (trap); result -> /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/backup-restore.csv

@@ -1,0 +1,57 @@
+# Velero: бэкап манифестов + файловый бэкап томов (Kopia, node-agent).
+# Снапшоты local-path томов невозможны, поэтому defaultVolumesToFsBackup.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.14.4
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+credentials:
+  useSecret: true
+  existingSecret: velero-credentials  # из Vault через ExternalSecret
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: velero
+      default: true
+      config:
+        region: us-east-1
+        s3ForcePathStyle: "true"
+        s3Url: http://seaweedfs.backup-storage.svc:8333
+  volumeSnapshotLocation: []
+  defaultVolumesToFsBackup: true
+  uploaderType: kopia
+
+snapshotsEnabled: false
+deployNodeAgent: true
+
+nodeAgent:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { memory: 512Mi }
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }
+
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+  nodeAgentPodMonitor:
+    enabled: true
+
+# Ежедневный бэкап прода, хранение 7 дней
+schedules:
+  boutique-prod-daily:
+    disabled: false
+    schedule: "0 3 * * *"
+    template:
+      ttl: 168h0m0s
+      includedNamespaces: [boutique-prod]
+      storageLocation: default
+
+upgradeCRDs: true

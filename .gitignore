@@ -1,0 +1,20 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+terraform.tfvars
+backend.hcl
+!*.example
+
+# Секреты и локальные артефакты (ключи распечатки Vault и т.п.)
+.secrets/
+*.pem
+*.key
+.env
+
+
+.DS_Store
+.idea/
+.vscode/

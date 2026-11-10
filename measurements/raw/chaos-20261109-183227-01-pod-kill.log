@@ -1,0 +1,8 @@
+2026-11-09T15:32:27Z [01-pod-kill] inject: kubectl delete pod -l app=frontend --grace-period=0 --force
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "frontend-5f45ddf97d-5gvnf" force deleted from boutique-prod namespace
+pod "frontend-5f45ddf97d-dxvgd" force deleted from boutique-prod namespace
+2026-11-09T15:32:44Z [01-pod-kill] OK: frontend восстановлен
+2026-11-09T15:36:50Z [01-pod-kill] no alert from [BoutiqueHighErrorRate SLOAvailabilityFastBurn BoutiqueDeploymentUnavailable BoutiquePodRestarting] within 240s
+2026-11-09T15:37:20Z [01-pod-kill] RESULT first_alert=none mttd=n/as mttr=17s 5xx=11
+2026-11-09T15:37:20Z [01-pod-kill] log: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/raw/chaos-20261109-183227-01-pod-kill.log ; summary: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/chaos-results.csv

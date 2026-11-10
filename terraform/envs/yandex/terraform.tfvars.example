@@ -1,0 +1,2 @@
+folder_id   = "<id каталога>"
+k8s_version = "<из yc managed-kubernetes list-versions>"

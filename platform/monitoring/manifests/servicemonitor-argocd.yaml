@@ -1,0 +1,17 @@
+# Метрики ArgoCD: argocd_app_sync_total / argocd_app_info — для DORA (частота деплоя,
+# неудачные синки) и алерта ArgoCDAppDegraded.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-application-controller
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [argocd]
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-metrics
+      app.kubernetes.io/component: application-controller
+  endpoints:
+    - port: http-metrics
+      interval: 30s

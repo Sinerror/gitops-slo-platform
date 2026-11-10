@@ -1,0 +1,57 @@
+{{- if .Values.smokeTest.enabled }}
+# Smoke-тест после каждого синка ArgoCD: главная, карточка товара, корзина, оформление заказа.
+# Если упал — синк помечается Failed, промоушн в prod не делается (см. CI promote).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smoke-test
+  labels:
+    {{- include "boutique.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: smoke-test
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        {{- include "boutique.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: smoke
+          image: curlimages/curl:8.16.0
+          securityContext:
+            {{- include "boutique.containerSecurityContext" . | nindent 12 }}
+          command: [sh, -c]
+          args:
+            - |
+              set -eu
+              BASE=http://frontend
+              JAR=/tmp/cookies
+              check() { code=$(curl -s -o /dev/null -w '%{http_code}' -b $JAR -c $JAR "$@"); echo "$code $*"; [ "$code" -lt 400 ]; }
+              for i in $(seq 1 30); do curl -sf -o /dev/null $BASE/_healthz && break; sleep 2; done
+              check $BASE/
+              check $BASE/product/OLJCESPC7Z
+              check -X POST -d product_id=OLJCESPC7Z -d quantity=1 $BASE/cart
+              check $BASE/cart
+              check -X POST \
+                -d email=smoke@example.com -d street_address="1600 Amphitheatre Parkway" \
+                -d zip_code=94043 -d city="Mountain View" -d state=CA -d country="United States" \
+                -d credit_card_number=4432801561520454 -d credit_card_expiration_month=1 \
+                -d credit_card_expiration_year=2039 -d credit_card_cvv=672 \
+                $BASE/cart/checkout
+              echo "smoke test passed"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

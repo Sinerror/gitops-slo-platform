@@ -1,0 +1,50 @@
+{
+  "uid": "delivery",
+  "title": "Delivery — синки ArgoCD и выкатки",
+  "tags": ["dora", "argocd", "gitops-slo"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Синков boutique-prod за период",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(increase(argocd_app_sync_total{name=\"boutique-prod\", phase=\"Succeeded\"}[$__range]))" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Неудачных синков boutique-*",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 5 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(increase(argocd_app_sync_total{name=~\"boutique-.*\", phase=~\"Failed|Error\"}[$__range]))" }],
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3, "type": "table", "title": "Состояние приложений ArgoCD",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "argocd_app_info", "format": "table", "instant": true }],
+      "transformations": [{ "id": "organize", "options": { "includeByName": { "name": true, "health_status": true, "sync_status": true, "dest_namespace": true } } }]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Синки по приложениям",
+      "gridPos": { "x": 0, "y": 5, "w": 12, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (name, phase) (increase(argocd_app_sync_total{name=~\"boutique-.*\"}[1h]))", "legendFormat": "{{name}} {{phase}}" }],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60 } } }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Реплики в prod: доступно / задано",
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "sum(kube_deployment_status_replicas_available{namespace=\"boutique-prod\"})", "legendFormat": "available" },
+        { "refId": "B", "expr": "sum(kube_deployment_spec_replicas{namespace=\"boutique-prod\"})", "legendFormat": "desired" }
+      ]
+    }
+  ]
+}

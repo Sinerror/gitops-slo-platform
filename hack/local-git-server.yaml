@@ -1,0 +1,48 @@
+# Временный git-сервер внутри кластера — только для отладки до пуша на GitHub.
+# Использует образ ArgoCD (в нём уже есть git), наружу не публикуется.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-git
+  namespace: argocd
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: local-git }
+  template:
+    metadata:
+      labels: { app: local-git }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
+      containers:
+        - name: git
+          image: quay.io/argoproj/argocd:v3.6.1
+          command: [sh, -c]
+          args:
+            - |
+              set -e
+              git init -q --bare -b main /srv/gitops-slo-platform.git
+              git -C /srv/gitops-slo-platform.git config receive.denyNonFastForwards false
+              exec git daemon --base-path=/srv --export-all --enable=receive-pack --reuseaddr --port=9418 /srv
+          ports: [{ containerPort: 9418, name: git }]
+          volumeMounts: [{ name: srv, mountPath: /srv }]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+      volumes:
+        - name: srv
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: local-git
+  namespace: argocd
+spec:
+  selector: { app: local-git }
+  ports: [{ port: 9418, targetPort: git, name: git }]

@@ -1,0 +1,8 @@
+2026-11-09T15:20:55Z [04-redis-disk-full] inject: fill /data on redis-cart-76485c7456-q8xhp
+67006464 bytes (63.9MB) copied, 0.020279 seconds, 3.1GB/s
+tmpfs                    64.0M     64.0M         0 100% /data
+2026-11-09T15:23:05Z [04-redis-disk-full] ALERT firing: RedisAOFWriteFailing
+2026-11-09T15:23:05Z [04-redis-disk-full] mitigate: rm /data/fill.bin
+2026-11-09T15:23:06Z [04-redis-disk-full] OK: Redis снова пишет AOF и корзина работает
+2026-11-09T15:23:06Z [04-redis-disk-full] RESULT first_alert=RedisAOFWriteFailing mttd=130s mttr=131s 5xx=14
+2026-11-09T15:23:06Z [04-redis-disk-full] log: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/raw/chaos-20261109-182055-04-redis-disk-full.log ; summary: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/chaos-results.csv

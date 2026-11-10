@@ -1,0 +1,96 @@
+# Один Gateway на окружение = отдельный Envoy с фиксированным именем Service
+# и NodePort, проброшенным kind на 127.0.0.1 хоста (см. terraform/envs/local).
+# Фиксированное имя Service нужно loadgenerator'у: трафик идёт через Gateway,
+# чтобы SLI (метрики Envoy) видел ту же нагрузку, что и пользователи.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: prod
+  namespace: gateway
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 2
+        pod:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    topologyKey: kubernetes.io/hostname
+                    labelSelector:
+                      matchLabels:
+                        gateway.envoyproxy.io/owning-gateway-name: prod
+        container:
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+      envoyService:
+        name: envoy-prod
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - port: 80
+                  nodePort: 30080
+                - port: 443
+                  nodePort: 30443
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: staging
+  namespace: gateway
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 1
+        container:
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { memory: 256Mi }
+      envoyService:
+        name: envoy-staging
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - port: 80
+                  nodePort: 30081
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: platform
+  namespace: gateway
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 1
+        container:
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { memory: 256Mi }
+      envoyService:
+        name: envoy-platform
+        type: NodePort
+        externalTrafficPolicy: Cluster
+        patch:
+          type: StrategicMerge
+          value:
+            spec:
+              ports:
+                - port: 80
+                  nodePort: 30090

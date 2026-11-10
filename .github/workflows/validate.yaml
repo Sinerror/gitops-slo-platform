@@ -1,0 +1,59 @@
+# Проверка GitOps-репозитория до того, как ArgoCD применит изменения:
+# helm lint + рендер чарта по окружениям, kubeconform, kustomize, terraform fmt/validate.
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+      - name: install kubeconform
+        env:
+          KUBECONFORM_VERSION: v0.8.0
+        run: |
+          curl -sSLo /tmp/kc.tgz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kc.tgz -C /usr/local/bin kubeconform
+      - name: helm lint + render
+        run: |
+          for env in staging prod; do
+            helm lint charts/boutique -f envs/$env/values.yaml
+            helm template boutique charts/boutique -f envs/$env/values.yaml > /tmp/boutique-$env.yaml
+          done
+      - name: kustomize build (monitoring)
+        run: kubectl kustomize platform/monitoring/manifests > /tmp/monitoring.yaml
+      - name: kubeconform
+        # CRD-схемы (Gateway API, Prometheus Operator, Strimzi, ESO...) — из каталога datreeio
+        run: |
+          kubeconform -strict -summary -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            /tmp/boutique-staging.yaml /tmp/boutique-prod.yaml /tmp/monitoring.yaml \
+            argocd/apps platform/gateway/manifests platform/cert-manager/manifests \
+            platform/kafka/manifests platform/secrets/manifests platform/backup/storage platform/coredns platform/rbac
+      - name: shellcheck
+        run: shellcheck -S warning scripts/*.sh chaos/*.sh hack/*.sh legacy/*.sh
+
+  terraform:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        env: [local, yandex]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+      - run: terraform fmt -check -recursive terraform
+      - run: terraform -chdir=terraform/envs/${{ matrix.env }} init -backend=false -input=false
+      - run: terraform -chdir=terraform/envs/${{ matrix.env }} validate

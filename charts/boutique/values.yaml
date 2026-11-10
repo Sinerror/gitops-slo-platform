@@ -1,0 +1,165 @@
+# Значения по умолчанию. Окружения переопределяют их в envs/<env>/values.yaml.
+
+environment: dev
+
+# Образы апстрима закреплены на релизе; свои сервисы (checkoutservice с Kafka,
+# order-consumer) собирает CI в GHCR и прописывает тег в envs/<env>/values.yaml.
+upstream:
+  registry: us-central1-docker.pkg.dev/online-boutique-ci/microservices-demo
+  tag: v0.10.7
+
+own:
+  registry: ghcr.io/sinerror
+  pullPolicy: IfNotPresent
+
+images:
+  checkoutservice:
+    tag: ""   # пусто => апстрим-образ без Kafka
+  orderConsumer:
+    tag: ""   # пусто => order-consumer не разворачивается
+
+gateway:
+  name: prod
+  namespace: gateway
+  hostnames: []
+
+kafka:
+  brokers: events-kafka-bootstrap.kafka.svc:9092
+  topic: orders
+
+orderConsumer:
+  replicas: 1
+  group: order-consumer
+  # Искусственная задержка обработки (мс) — рычаг для сценария «отставание consumer»
+  processingDelayMs: 0
+
+loadgenerator:
+  enabled: false
+  users: 10
+  rate: 1
+
+smokeTest:
+  enabled: true
+
+# BackendTrafficPolicy Envoy Gateway: безопасные retry + пассивные health checks
+trafficPolicy:
+  enabled: false
+  retries: 3
+
+podDisruptionBudget:
+  enabled: false
+
+# Общие настройки gRPC-сервисов. replicas/resources можно переопределить по сервису.
+services:
+  adservice:
+    port: 9555
+    replicas: 1
+    probe: grpc
+    env: { PORT: "9555" }
+    resources:
+      requests: { cpu: 100m, memory: 180Mi }
+      limits: { memory: 300Mi }
+  cartservice:
+    port: 7070
+    replicas: 1
+    probe: grpc
+    env: { REDIS_ADDR: "redis-cart:6379" }
+    resources:
+      requests: { cpu: 100m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  checkoutservice:
+    port: 5050
+    replicas: 1
+    probe: grpc
+    env:
+      PORT: "5050"
+      PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+      SHIPPING_SERVICE_ADDR: "shippingservice:50051"
+      PAYMENT_SERVICE_ADDR: "paymentservice:50051"
+      EMAIL_SERVICE_ADDR: "emailservice:5000"
+      CURRENCY_SERVICE_ADDR: "currencyservice:7000"
+      CART_SERVICE_ADDR: "cartservice:7070"
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  currencyservice:
+    port: 7000
+    replicas: 1
+    probe: grpc
+    env: { PORT: "7000", DISABLE_PROFILER: "1" }
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  emailservice:
+    port: 8080
+    servicePort: 5000
+    replicas: 1
+    probe: grpc
+    env: { PORT: "8080", DISABLE_PROFILER: "1" }
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  frontend:
+    port: 8080
+    servicePort: 80
+    replicas: 1
+    probe: http
+    env:
+      PORT: "8080"
+      PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+      CURRENCY_SERVICE_ADDR: "currencyservice:7000"
+      CART_SERVICE_ADDR: "cartservice:7070"
+      RECOMMENDATION_SERVICE_ADDR: "recommendationservice:8080"
+      SHIPPING_SERVICE_ADDR: "shippingservice:50051"
+      CHECKOUT_SERVICE_ADDR: "checkoutservice:5050"
+      AD_SERVICE_ADDR: "adservice:9555"
+      SHOPPING_ASSISTANT_SERVICE_ADDR: "shoppingassistantservice:80"
+      ENABLE_PROFILER: "0"
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  paymentservice:
+    port: 50051
+    replicas: 1
+    probe: grpc
+    env: { PORT: "50051", DISABLE_PROFILER: "1" }
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  productcatalogservice:
+    port: 3550
+    replicas: 1
+    probe: grpc
+    env: { PORT: "3550", DISABLE_PROFILER: "1" }
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+  recommendationservice:
+    port: 8080
+    replicas: 1
+    probe: grpc
+    env:
+      PORT: "8080"
+      PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+      DISABLE_PROFILER: "1"
+    resources:
+      requests: { cpu: 50m, memory: 220Mi }
+      limits: { memory: 450Mi }
+  shippingservice:
+    port: 50051
+    replicas: 1
+    probe: grpc
+    env: { PORT: "50051", DISABLE_PROFILER: "1" }
+    resources:
+      requests: { cpu: 50m, memory: 64Mi }
+      limits: { memory: 128Mi }
+
+redis:
+  image: redis:7.4.6-alpine
+  exporterImage: oliver006/redis_exporter:v1.97.0
+  # Том /data — tmpfs фиксированного размера: в kind local-path не ограничивает
+  # размер PVC, а здесь заполнение тома даёт честный ENOSPC (сценарий «диск БД заполнен»).
+  dataSizeLimit: 64Mi
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 256Mi }

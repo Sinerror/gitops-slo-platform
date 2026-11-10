@@ -1,0 +1,78 @@
+# Grafana Alloy (DaemonSet): читает логи подов через Kubernetes API и отправляет в Loki.
+# Заменяет Promtail (EOL 02.03.2026).
+controller:
+  type: daemonset
+
+alloy:
+  mounts:
+    varlog: false
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { memory: 256Mi }
+  configMap:
+    create: true
+    content: |
+      discovery.kubernetes "pods" {
+        role = "pod"
+        selectors {
+          role  = "pod"
+          field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
+        }
+      }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name", "__meta_kubernetes_pod_label_app"]
+          separator     = ""
+          target_label  = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_node_name"]
+          target_label  = "node"
+        }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.process.pods.receiver]
+      }
+
+      // JSON-логи сервисов Online Boutique: вытащить уровень (severity) в метку
+      loki.process "pods" {
+        stage.json {
+          expressions = { level = "severity" }
+        }
+        stage.labels {
+          values = { level = "" }
+        }
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint {
+          url = "http://loki-gateway.logging.svc/loki/api/v1/push"
+        }
+      }
+
+  extraEnv:
+    - name: HOSTNAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+
+serviceMonitor:
+  enabled: true

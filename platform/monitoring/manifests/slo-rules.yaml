@@ -1,0 +1,165 @@
+# SLO для прод-магазина и multi-window multi-burn-rate алерты (Google SRE Workbook, гл. 5).
+#
+#   SLO 1 «Доступность»: 99.5% HTTP-запросов через prod Gateway — не 5xx (окно 30 дней).
+#   SLO 2 «Скорость оформления заказа»: 95% POST /cart/checkout быстрее 1 с (окно 30 дней).
+#
+# Бюджет ошибок: SLO1 — 0.5% запросов (~3.6 ч полного простоя за 30 дней), SLO2 — 5%.
+# SLI берутся с Envoy (как видит клиент), а не с подов приложения.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: slo-boutique
+  namespace: monitoring
+spec:
+  groups:
+    # ---------- SLI: доля «плохих» событий на разных окнах ----------
+    - name: slo-boutique-availability-sli
+      interval: 30s
+      rules:
+        # Окна выписаны явно (без генератора вроде Sloth), чтобы правила читались как есть
+        - record: slo:sli_error:ratio_rate5m
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[5m]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[5m])), 1e-9)
+        - record: slo:sli_error:ratio_rate30m
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[30m]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[30m])), 1e-9)
+        - record: slo:sli_error:ratio_rate1h
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[1h]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[1h])), 1e-9)
+        - record: slo:sli_error:ratio_rate2h
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[2h]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[2h])), 1e-9)
+        - record: slo:sli_error:ratio_rate6h
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[6h]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[6h])), 1e-9)
+        - record: slo:sli_error:ratio_rate1d
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[1d]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[1d])), 1e-9)
+        - record: slo:sli_error:ratio_rate3d
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[3d]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[3d])), 1e-9)
+        - record: slo:sli_error:ratio_rate30d
+          labels: { slo: availability, service: boutique }
+          expr: |
+            sum(rate(envoy_http_downstream_rq_xx{gateway="prod", envoy_response_code_class="5"}[30d]))
+            / clamp_min(sum(rate(envoy_http_downstream_rq_total{gateway="prod"}[30d])), 1e-9)
+        - record: slo:objective:ratio
+          labels: { slo: availability, service: boutique }
+          expr: vector(0.995)
+
+    - name: slo-boutique-checkout-latency-sli
+      interval: 30s
+      rules:
+        # «Плохое» событие — оформление заказа дольше 1000 мс (бакет le="1000" гистограммы Envoy, мс)
+        - record: slo:sli_error:ratio_rate5m
+          labels: { slo: checkout-latency, service: boutique }
+          expr: |
+            1 - (
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[5m]))
+              / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[5m])), 1e-9)
+            )
+        - record: slo:sli_error:ratio_rate30m
+          labels: { slo: checkout-latency, service: boutique }
+          expr: |
+            1 - (
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[30m]))
+              / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[30m])), 1e-9)
+            )
+        - record: slo:sli_error:ratio_rate1h
+          labels: { slo: checkout-latency, service: boutique }
+          expr: |
+            1 - (
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[1h]))
+              / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[1h])), 1e-9)
+            )
+        - record: slo:sli_error:ratio_rate6h
+          labels: { slo: checkout-latency, service: boutique }
+          expr: |
+            1 - (
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[6h]))
+              / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[6h])), 1e-9)
+            )
+        - record: slo:sli_error:ratio_rate30d
+          labels: { slo: checkout-latency, service: boutique }
+          expr: |
+            1 - (
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[30d]))
+              / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[30d])), 1e-9)
+            )
+        - record: slo:objective:ratio
+          labels: { slo: checkout-latency, service: boutique }
+          expr: vector(0.95)
+        # p95 оформления заказа, секунды — для дашборда и README
+        - record: boutique:checkout_latency_seconds:p95_5m
+          expr: |
+            histogram_quantile(0.95, sum by (le) (rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[5m]))) / 1000
+
+    - name: slo-boutique-error-budget
+      interval: 1m
+      rules:
+        # Доля оставшегося бюджета за 30 дней: 1 = не тронут, 0 = израсходован, <0 = перерасход
+        - record: slo:error_budget_remaining:ratio
+          expr: |
+            1 - (slo:sli_error:ratio_rate30d / on(slo, service) (1 - slo:objective:ratio))
+
+    # ---------- Алерты: быстрый и медленный burn rate ----------
+    - name: slo-boutique-alerts
+      rules:
+        - alert: SLOAvailabilityFastBurn
+          # 2% бюджета за 1 ч (14.4x) или 5% за 6 ч (6x)
+          expr: |
+            (
+              slo:sli_error:ratio_rate1h{slo="availability"} > (14.4 * 0.005)
+              and slo:sli_error:ratio_rate5m{slo="availability"} > (14.4 * 0.005)
+            ) or (
+              slo:sli_error:ratio_rate6h{slo="availability"} > (6 * 0.005)
+              and slo:sli_error:ratio_rate30m{slo="availability"} > (6 * 0.005)
+            )
+          for: 1m
+          labels: { severity: critical, slo: availability }
+          annotations:
+            summary: "Быстро сгорает бюджет ошибок доступности магазина"
+            description: "Доля 5xx через prod Gateway за 5м: {{ $value | humanizePercentage }} (SLO 99.5%)."
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/slo-availability.md
+        - alert: SLOAvailabilitySlowBurn
+          expr: |
+            (
+              slo:sli_error:ratio_rate1d{slo="availability"} > (3 * 0.005)
+              and slo:sli_error:ratio_rate2h{slo="availability"} > (3 * 0.005)
+            ) or (
+              slo:sli_error:ratio_rate3d{slo="availability"} > (1 * 0.005)
+              and slo:sli_error:ratio_rate6h{slo="availability"} > (1 * 0.005)
+            )
+          for: 15m
+          labels: { severity: warning, slo: availability }
+          annotations:
+            summary: "Медленно сгорает бюджет ошибок доступности"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/slo-availability.md
+        - alert: SLOCheckoutLatencyFastBurn
+          expr: |
+            (
+              slo:sli_error:ratio_rate1h{slo="checkout-latency"} > (14.4 * 0.05)
+              and slo:sli_error:ratio_rate5m{slo="checkout-latency"} > (14.4 * 0.05)
+            ) or (
+              slo:sli_error:ratio_rate6h{slo="checkout-latency"} > (6 * 0.05)
+              and slo:sli_error:ratio_rate30m{slo="checkout-latency"} > (6 * 0.05)
+            )
+          for: 1m
+          labels: { severity: critical, slo: checkout-latency }
+          annotations:
+            summary: "Оформление заказа медленнее 1 с слишком часто"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/slo-checkout-latency.md

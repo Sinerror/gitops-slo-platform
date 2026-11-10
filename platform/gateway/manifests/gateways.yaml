@@ -1,0 +1,84 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: prod
+  namespace: gateway
+  annotations:
+    # cert-manager выпускает сертификат для HTTPS-листенера (self-signed CA)
+    cert-manager.io/cluster-issuer: local-ca
+spec:
+  gatewayClassName: envoy
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: prod
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: boutique-prod
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: shop.localtest.me
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: shop-prod-tls
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: boutique-prod
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: staging
+  namespace: gateway
+spec:
+  gatewayClassName: envoy
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: staging
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: boutique-staging
+---
+# UI платформы: argocd / grafana / prometheus / alertmanager / vault по хостнеймам *.localtest.me
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: platform
+  namespace: gateway
+spec:
+  gatewayClassName: envoy
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: platform
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: "*.localtest.me"
+      allowedRoutes:
+        namespaces:
+          from: All

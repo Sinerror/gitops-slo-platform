@@ -1,0 +1,31 @@
+# OpenBao — открытый (MPL-2.0) форк HashiCorp Vault под Linux Foundation, API совместим.
+# Выбран вместо Vault: ресурсы HashiCorp недоступны из сети стенда (trade controls, 403).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openbao
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  sources:
+    - repoURL: https://openbao.github.io/openbao-helm
+      chart: openbao
+      targetRevision: 0.30.7
+      helm:
+        valueFiles: [$values/platform/secrets/openbao.values.yaml]
+    - repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openbao
+  # После рестарта пода OpenBao запечатан (sealed) — распечатывает scripts/openbao-init.sh
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+    syncOptions: [CreateNamespace=true]

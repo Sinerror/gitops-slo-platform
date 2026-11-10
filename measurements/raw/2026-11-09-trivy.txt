@@ -1,0 +1,4 @@
+# Trivy 0.76.2, --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+before: checkoutservice (golang 1.27.0 builder, x/net 0.58.0, klauspost/compress 1.15.9): HIGH 7, CRITICAL 0 -> exit 1 (push заблокирован)
+before: order-consumer  (golang 1.27.0): HIGH 4 (stdlib), CRITICAL 0 -> exit 1
+after:  оба образа (golang 1.27.3, x/net 0.62.0, compress 1.18.7): exit 0

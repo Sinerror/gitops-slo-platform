@@ -1,0 +1,56 @@
+# Маршруты к UI платформенных компонентов. Только для локального стенда:
+# порт 18090 слушает 127.0.0.1, наружу не торчит.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd
+  namespace: argocd
+spec:
+  parentRefs: [{ name: platform, namespace: gateway }]
+  hostnames: [argocd.localtest.me]
+  rules:
+    - backendRefs: [{ name: argocd-server, port: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  parentRefs: [{ name: platform, namespace: gateway }]
+  hostnames: [grafana.localtest.me]
+  rules:
+    - backendRefs: [{ name: kube-prometheus-stack-grafana, port: 80 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  parentRefs: [{ name: platform, namespace: gateway }]
+  hostnames: [prometheus.localtest.me]
+  rules:
+    - backendRefs: [{ name: kube-prometheus-stack-prometheus, port: 9090 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  parentRefs: [{ name: platform, namespace: gateway }]
+  hostnames: [alertmanager.localtest.me]
+  rules:
+    - backendRefs: [{ name: kube-prometheus-stack-alertmanager, port: 9093 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: openbao
+  namespace: openbao
+spec:
+  parentRefs: [{ name: platform, namespace: gateway }]
+  hostnames: [openbao.localtest.me]
+  rules:
+    - backendRefs: [{ name: openbao-ui, port: 8200 }]

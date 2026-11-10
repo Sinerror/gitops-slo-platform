@@ -1,0 +1,3 @@
+date,backup_s,restore_s,restore_to_shop_ok_s,data_restored,notes
+2026-11-09T15:39:35Z,8,11,35,no,"FALSE NEGATIVE of the check (HTML grep, single attempt 15s after restore): key restore-check-20261109-183820 with 66VCHSJNUP x3 was present in restored Redis; check fixed and test re-run"
+2026-11-09T15:42:06Z,7,12,36,yes,"namespace boutique-prod deleted and restored (Kopia FS backup of redis tmpfs)"

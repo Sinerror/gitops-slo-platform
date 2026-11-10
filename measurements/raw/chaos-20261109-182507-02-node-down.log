@@ -1,0 +1,12 @@
+2026-11-09T15:25:08Z [02-node-down] monitoring on: gitops-slo-worker2, gitops-slo-worker3; target node: gitops-slo-worker (19 boutique-prod pods)
+2026-11-09T15:25:08Z [02-node-down] platform pods on target: argocd/argocd-application-controller-0 argocd/argocd-applicationset-controller-595478fb5d-57nnn argocd/argocd-repo-server-6bf5f7859b-k4v2d argocd/argocd-server-7cd4577c66-tm989 backup-storage/create-bucket-g7cls backup-storage/seaweedfs-0 envoy-gateway-system/envoy-gateway-platform-0e2bf3ae-5f978f94d8-x4zg7 envoy-gateway-system/envoy-gateway-prod-be1d969a-d88d97466-r4x27 external-secrets/external-secrets-webhook-65966dcb7c-7l4hb logging/alloy-nqd9d logging/loki-0 logging/loki-gateway-57d94569c9-nfvj5 monitoring/kube-prometheus-stack-prometheus-node-exporter-rbpgf openbao/openbao-0 velero/node-agent-n8ksm
+2026-11-09T15:25:08Z [02-node-down] inject: docker stop gitops-slo-worker
+gitops-slo-worker
+2026-11-09T15:27:29Z [02-node-down] ALERT firing: NodeNotReady
+2026-11-09T15:27:29Z [02-node-down] mitigate: docker start gitops-slo-worker
+gitops-slo-worker
+2026-11-09T15:27:33Z [02-node-down] OK: узел gitops-slo-worker Ready
+2026-11-09T15:27:43Z [02-node-down] OK: все Deployment в boutique-prod доступны
+2026-11-09T15:27:43Z [02-node-down] OK: главная отвечает
+2026-11-09T15:27:43Z [02-node-down] RESULT first_alert=NodeNotReady mttd=141s mttr=155s 5xx=-59
+2026-11-09T15:27:43Z [02-node-down] log: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/raw/chaos-20261109-182507-02-node-down.log ; summary: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/chaos-results.csv

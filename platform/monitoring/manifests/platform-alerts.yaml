@@ -1,0 +1,108 @@
+# Быстрые алерты на симптомы и алерты на причины — в дополнение к SLO burn-rate.
+# Burn-rate алерты защищают бюджет (на 1-часовом окне срабатывают через минуты-десятки
+# минут), а эти дают быстрое обнаружение (MTTD) явной аварии.
+# Каждый алерт ссылается на runbook в docs/runbooks.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-alerts
+  namespace: monitoring
+spec:
+  groups:
+    - name: symptoms
+      rules:
+        - alert: BoutiqueHighErrorRate
+          expr: slo:sli_error:ratio_rate5m{slo="availability"} > 0.05
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "Магазин: {{ $value | humanizePercentage }} ответов 5xx за 5 минут"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/slo-availability.md
+        - alert: CheckoutErrorRateHigh
+          expr: |
+            sum(rate(envoy_cluster_upstream_rq_xx{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", envoy_response_code_class="5"}[2m]))
+              / clamp_min(sum(rate(envoy_cluster_upstream_rq_xx{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[2m])), 1e-9) > 0.1
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "Оформление заказа: {{ $value | humanizePercentage }} ошибок"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/bad-release.md
+
+    - name: kafka
+      rules:
+        - alert: KafkaConsumerLagHigh
+          expr: sum by (consumergroup, topic) (kafka_consumergroup_lag{topic="orders"}) > 20
+          for: 2m
+          labels: { severity: warning }
+          annotations:
+            summary: "Consumer {{ $labels.consumergroup }} отстаёт на {{ $value }} сообщений"
+            description: "События заказов обрабатываются с задержкой; клиенты не получают подтверждения вовремя."
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/kafka-consumer-lag.md
+        - alert: OrderConsumerDown
+          expr: sum(up{namespace="boutique-prod", pod=~"order-consumer.*"}) == 0 or absent(up{namespace="boutique-prod", pod=~"order-consumer.*"})
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Нет живых order-consumer в prod"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/kafka-consumer-lag.md
+
+    - name: nodes-and-pods
+      rules:
+        # Стандартный KubeNodeNotReady ждёт 15 минут — для MTTD слишком долго
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready", status="true"} == 0
+          for: 1m
+          labels: { severity: critical }
+          annotations:
+            summary: "Узел {{ $labels.node }} NotReady"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/node-down.md
+        - alert: BoutiqueDeploymentUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{namespace="boutique-prod"}
+              < kube_deployment_spec_replicas{namespace="boutique-prod"}
+          for: 2m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.deployment }}: доступно меньше реплик, чем задано"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/pod-crash.md
+        - alert: BoutiquePodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="boutique-prod"}[5m]) > 2
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.pod }} перезапускается"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/pod-crash.md
+
+    - name: cart-db
+      rules:
+        # Redis пишет AOF в /data (tmpfs фиксированного размера). Если том заполнен,
+        # запись AOF падает с ENOSPC, Redis перестаёт принимать записи -> 5xx на /cart.
+        - alert: RedisAOFWriteFailing
+          expr: redis_aof_last_write_status{namespace="boutique-prod"} == 0
+          for: 30s
+          labels: { severity: critical }
+          annotations:
+            summary: "Redis корзин {{ $labels.pod }} не может писать AOF (диск заполнен?)"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/redis-disk-full.md
+
+    - name: platform
+      rules:
+        - alert: OpenBaoSealed
+          expr: vault_core_unsealed == 0
+          for: 1m
+          labels: { severity: warning }
+          annotations:
+            summary: "OpenBao запечатан — новые секреты не синхронизируются"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/openbao-sealed.md
+        - alert: VeleroBackupFailed
+          expr: increase(velero_backup_failure_total[1h]) > 0
+          labels: { severity: warning }
+          annotations:
+            summary: "Бэкап Velero завершился ошибкой"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/backup-restore.md
+        - alert: ArgoCDAppDegraded
+          expr: argocd_app_info{health_status=~"Degraded|Missing"} == 1
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "ArgoCD: приложение {{ $labels.name }} в состоянии {{ $labels.health_status }}"
+            runbook_url: https://github.com/Sinerror/gitops-slo-platform/blob/main/docs/runbooks/bad-release.md

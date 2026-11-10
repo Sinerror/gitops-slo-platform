@@ -1,0 +1,45 @@
+# Компактный ArgoCD для одного кластера. UI отдаётся через platform Gateway
+# (argocd.localtest.me:18090), поэтому TLS терминируется не в argocd-server.
+global:
+  domain: argocd.localtest.me
+
+configs:
+  params:
+    server.insecure: true
+    # Быстрее реагировать на коммиты (по умолчанию 180 с). Для lead time.
+    timeout.reconciliation: 60s
+  cm:
+    # Учитывать health у Application-of-Applications
+    resource.customizations.health.argoproj.io_Application: |
+      hs = {}
+      hs.status = "Progressing"
+      hs.message = ""
+      if obj.status ~= nil and obj.status.health ~= nil then
+        hs.status = obj.status.health.status
+        if obj.status.health.message ~= nil then
+          hs.message = obj.status.health.message
+        end
+      end
+      return hs
+  rbac:
+    policy.default: role:readonly
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+controller:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false # включается после установки kube-prometheus-stack (см. platform/monitoring)
+
+server:
+  metrics:
+    enabled: true
+
+repoServer:
+  metrics:
+    enabled: true

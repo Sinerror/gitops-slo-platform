@@ -1,0 +1,53 @@
+# Приложение: свой Helm-чарт charts/boutique + values по окружениям.
+# CI в репозитории gitops-slo-app коммитит новый тег образа в envs/<env>/values.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boutique-staging
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: boutique
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: charts/boutique
+    helm:
+      valueFiles: [../../envs/staging/values.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique-staging
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 3
+      backoff: { duration: 10s, factor: 2, maxDuration: 1m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boutique-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: boutique
+  source:
+    repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+    targetRevision: main
+    path: charts/boutique
+    helm:
+      valueFiles: [../../envs/prod/values.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boutique-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+    retry:
+      limit: 3
+      backoff: { duration: 10s, factor: 2, maxDuration: 1m }

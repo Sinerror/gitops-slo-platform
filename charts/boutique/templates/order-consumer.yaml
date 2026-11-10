@@ -1,0 +1,69 @@
+{{- if .Values.images.orderConsumer.tag }}
+# Потребитель событий заказов из Kafka (исходники: gitops-slo-app/src/order-consumer).
+# Отставание группы (kafka_consumergroup_lag) снимает Strimzi Kafka Exporter.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-consumer
+  labels:
+    app: order-consumer
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orderConsumer.replicas }}
+  selector:
+    matchLabels:
+      app: order-consumer
+  template:
+    metadata:
+      labels:
+        app: order-consumer
+        {{- include "boutique.labels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        {{- include "boutique.podSecurityContext" . | nindent 8 }}
+      containers:
+        - name: consumer
+          image: {{ .Values.own.registry }}/order-consumer:{{ .Values.images.orderConsumer.tag }}
+          imagePullPolicy: {{ .Values.own.pullPolicy }}
+          securityContext:
+            {{- include "boutique.containerSecurityContext" . | nindent 12 }}
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ .Values.kafka.brokers | quote }}
+            - name: KAFKA_TOPIC
+              value: {{ .Values.kafka.topic | quote }}
+            - name: KAFKA_GROUP
+              value: {{ .Values.orderConsumer.group | quote }}
+            - name: PROCESSING_DELAY_MS
+              value: {{ .Values.orderConsumer.processingDelayMs | quote }}
+            - name: METRICS_ADDR
+              value: ":9102"
+          ports:
+            - name: metrics
+              containerPort: 9102
+          readinessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: metrics }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: order-consumer
+  labels:
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: order-consumer
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+{{- end }}

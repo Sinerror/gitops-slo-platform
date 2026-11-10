@@ -1,0 +1,39 @@
+# Метрики Envoy-прокси (Gateway). Метка gateway=prod|staging|platform — из метки пода.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-proxies
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [envoy-gateway-system]
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: proxy
+      app.kubernetes.io/managed-by: envoy-gateway
+  podMetricsEndpoints:
+    - port: metrics
+      path: /stats/prometheus
+      interval: 15s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_label_gateway_envoyproxy_io_owning_gateway_name]
+          targetLabel: gateway
+      metricRelabelings:
+        # Оставляем только то, что нужно для SLO и дашбордов — экономим память Prometheus
+        - sourceLabels: [__name__]
+          regex: envoy_(cluster_upstream_rq|cluster_upstream_rq_xx|cluster_upstream_rq_time_bucket|cluster_upstream_rq_time_count|cluster_upstream_rq_time_sum|cluster_upstream_cx_none_healthy|cluster_upstream_rq_timeout|cluster_membership_healthy|http_downstream_rq_xx|http_downstream_rq_total|http_downstream_rq_time_bucket|http_downstream_rq_time_count|http_downstream_rq_time_sum|server_live)
+          action: keep
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-gateway-controller
+  namespace: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [envoy-gateway-system]
+  selector:
+    matchLabels:
+      control-plane: envoy-gateway
+  podMetricsEndpoints:
+    - port: metrics

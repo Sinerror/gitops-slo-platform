@@ -1,0 +1,27 @@
+# Отдельное правило для /cart/checkout => отдельный Envoy-кластер
+# (envoy_cluster_name="httproute/<ns>/frontend/rule/0"), по нему считается SLO оформления заказа.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: frontend
+  labels:
+    {{- include "boutique.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+      namespace: {{ .Values.gateway.namespace }}
+  {{- with .Values.gateway.hostnames }}
+  hostnames:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /cart/checkout }
+      backendRefs:
+        - name: frontend
+          port: 80
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
+        - name: frontend
+          port: 80

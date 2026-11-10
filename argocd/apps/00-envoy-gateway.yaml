@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: envoy-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: platform
+  sources:
+    # Gateway API + Envoy Gateway вместо ingress-nginx (архивирован в 03.2026)
+    - repoURL: docker.io/envoyproxy
+      chart: gateway-helm
+      targetRevision: 1.10.0
+      helm:
+        valueFiles: [$values/platform/gateway/values.yaml]
+    - repoURL: https://github.com/Sinerror/gitops-slo-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: envoy-gateway-system
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    retry:
+      limit: 10
+      backoff: { duration: 15s, factor: 2, maxDuration: 3m }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]

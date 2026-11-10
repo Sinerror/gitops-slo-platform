@@ -1,0 +1,39 @@
+# prod: 2 реплики пользовательского пути, PDB, синтетическая нагрузка через Gateway.
+# Теги images.* попадают сюда только через workflow promote (после зелёного staging).
+environment: prod
+
+gateway:
+  name: prod
+
+kafka:
+  topic: orders
+
+loadgenerator:
+  enabled: true
+  users: 10
+  rate: 1
+
+podDisruptionBudget:
+  enabled: true
+
+# Retry на connect-failure + пассивные health checks (action item постмортема 01)
+trafficPolicy:
+  enabled: true
+
+services:
+  frontend:
+    replicas: 2
+  checkoutservice:
+    replicas: 2
+  cartservice:
+    replicas: 2
+  productcatalogservice:
+    replicas: 2
+  currencyservice:
+    replicas: 2
+
+images:
+  checkoutservice:
+    tag: "dev"
+  orderConsumer:
+    tag: "dev"

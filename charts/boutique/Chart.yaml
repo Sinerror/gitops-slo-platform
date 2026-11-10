@@ -1,0 +1,9 @@
+apiVersion: v2
+name: boutique
+description: >-
+  Online Boutique (GoogleCloudPlatform/microservices-demo, Apache-2.0) — собственный
+  Helm-чарт с values по окружениям, Gateway API маршрутами, NetworkPolicy,
+  событиями заказов в Kafka и smoke-тестом после синка.
+type: application
+version: 0.1.0
+appVersion: "v0.10.7"

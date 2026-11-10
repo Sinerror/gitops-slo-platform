@@ -1,0 +1,6 @@
+# 2026-11-09, 40 последовательных GET / через Gateway с хоста (curl time_total, секунды)
+before (prod  :18080): p50 0.018724 p95 4.019922 max 4.031378
+before (stage :18081): p50 2.025990 p95 4.031269 max 4.038743
+nslookup metadata.google.internal из пода: rc=1, 5s x3
+after  (prod  :18080): p50 0.014786 p95 0.021394 max 0.026098
+after  (stage :18081): p50 0.015313 p95 0.023004 max 0.024590

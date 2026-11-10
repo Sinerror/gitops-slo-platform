@@ -1,0 +1,4 @@
+# Strimzi 1.x — только KRaft (ZooKeeper удалён в 0.46). Оператор следит за namespace kafka.
+resources:
+  requests: { cpu: 50m, memory: 256Mi }
+  limits: { memory: 384Mi }
