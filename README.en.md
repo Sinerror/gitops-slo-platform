@@ -29,6 +29,8 @@ Highlights:
 - The Trivy gate (same command as in CI, run locally before the first push) failed the first two images
   (7 + 4 HIGH CVEs in Go stdlib / x/net / compress); after bumping the builder and dependencies — 0.
 
+![Grafana dashboard: SLOs and error budget](docs/img/grafana-slo.png)
+
 ## Stack
 
 | Concern | Choice | Why |
