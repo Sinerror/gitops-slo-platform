@@ -64,40 +64,40 @@ spec:
     - name: slo-boutique-checkout-latency-sli
       interval: 30s
       rules:
-        # «Плохое» событие — оформление заказа дольше 1000 мс (бакет le="1000" гистограммы Envoy, мс)
+        # «Плохое» событие — оформление заказа дольше 1000 мс (бакет 1000 мс гистограммы Envoy; метка le бывает "1000" и "1000.0" — из-за точного совпадения с "1000" SLI молча не считался)
         - record: slo:sli_error:ratio_rate5m
           labels: { slo: checkout-latency, service: boutique }
           expr: |
             1 - (
-              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[5m]))
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le=~"1000([.]0)?"}[5m]))
               / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[5m])), 1e-9)
             )
         - record: slo:sli_error:ratio_rate30m
           labels: { slo: checkout-latency, service: boutique }
           expr: |
             1 - (
-              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[30m]))
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le=~"1000([.]0)?"}[30m]))
               / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[30m])), 1e-9)
             )
         - record: slo:sli_error:ratio_rate1h
           labels: { slo: checkout-latency, service: boutique }
           expr: |
             1 - (
-              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[1h]))
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le=~"1000([.]0)?"}[1h]))
               / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[1h])), 1e-9)
             )
         - record: slo:sli_error:ratio_rate6h
           labels: { slo: checkout-latency, service: boutique }
           expr: |
             1 - (
-              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[6h]))
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le=~"1000([.]0)?"}[6h]))
               / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[6h])), 1e-9)
             )
         - record: slo:sli_error:ratio_rate30d
           labels: { slo: checkout-latency, service: boutique }
           expr: |
             1 - (
-              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le="1000"}[30d]))
+              sum(rate(envoy_cluster_upstream_rq_time_bucket{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0", le=~"1000([.]0)?"}[30d]))
               / clamp_min(sum(rate(envoy_cluster_upstream_rq_time_count{gateway="prod", envoy_cluster_name="httproute/boutique-prod/frontend/rule/0"}[30d])), 1e-9)
             )
         - record: slo:objective:ratio
