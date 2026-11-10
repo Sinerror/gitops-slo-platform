@@ -13,6 +13,6 @@ orderConsumer:
 
 images:
   checkoutservice:
-    tag: "dev"
+    tag: "sha-0e77b45"
   orderConsumer:
-    tag: "dev"
+    tag: "sha-0e77b45"
