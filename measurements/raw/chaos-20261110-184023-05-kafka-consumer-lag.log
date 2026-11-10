@@ -1,0 +1,10 @@
+2026-11-10T15:40:23Z [05-kafka-consumer-lag] inject: orderConsumer.processingDelayMs=30000 (MODE=git), lag before: 0
+2026-11-10T15:44:59Z [05-kafka-consumer-lag] ALERT firing: KafkaConsumerLagHigh
+2026-11-10T15:45:00Z [05-kafka-consumer-lag] lag at alert: 32
+2026-11-10T15:45:00Z [05-kafka-consumer-lag] mitigate: git revert 4e6a4bd88acfaf0ba32505e7195139324a67d623
+[main 493d29f] Revert "prod: order-consumer config change (chaos 05: slow consumer)"
+ Date: Tue Nov 10 18:45:00 2026 +0300
+ 1 file changed, 3 deletions(-)
+2026-11-10T15:45:26Z [05-kafka-consumer-lag] OK: lag снова около нуля
+2026-11-10T15:45:57Z [05-kafka-consumer-lag] RESULT first_alert=KafkaConsumerLagHigh mttd=276s mttr=304s 5xx=5
+2026-11-10T15:45:57Z [05-kafka-consumer-lag] log: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/raw/chaos-20261110-184023-05-kafka-consumer-lag.log ; summary: /c/Users/1/Desktop/Project/petpr_3/gitops-slo-platform/measurements/chaos-results.csv
