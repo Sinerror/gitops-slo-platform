@@ -17,8 +17,13 @@ for app in $APPS; do
   n=0; sum=0
   while read -r rev deployed; do
     [ -n "$rev" ] || continue
-    src="$(git -C "$REPO_DIR" log -1 --format=%B "$rev" 2>/dev/null | sed -n 's/^Source-Commit-Time: //p')"
-    subj="$(git -C "$REPO_DIR" log -1 --format=%s "$rev" 2>/dev/null || echo '?')"
+    # ревизии, которых нет в репозитории (снимки временного git-сервера до публикации), пропускаем
+    if ! git -C "$REPO_DIR" cat-file -e "$rev^{commit}" 2>/dev/null; then
+      printf '   %s  %-40s (ревизии нет в репозитории)
+' "$deployed" "${rev:0:7}"; continue
+    fi
+    src="$(git -C "$REPO_DIR" log -1 --format=%B "$rev" | sed -n 's/^Source-Commit-Time: //p' | head -1)"
+    subj="$(git -C "$REPO_DIR" log -1 --format=%s "$rev")"
     if [ -n "$src" ]; then
       lt=$(( $(to_epoch "$deployed") - $(to_epoch "$src") ))
       n=$((n+1)); sum=$((sum+lt))
@@ -27,7 +32,7 @@ for app in $APPS; do
       printf '   %s  %-40s (не из CI)\n' "$deployed" "$subj"
     fi
   done <<< "$hist"
-  [ "$n" -gt 0 ] && echo "   средний lead time по $n релизам из CI: $((sum/n))s"
+  [ "$n" -eq 0 ] || echo "   средний lead time по $n релизам из CI: $((sum/n))s"
   echo "   синков в истории: $(echo "$hist" | grep -c .)"
 done
 

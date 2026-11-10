@@ -15,7 +15,8 @@
 | --- | --- | --- | --- |
 | Подъём кластера + ArgoCD с нуля | — | **76 с** (образ узла kind уже в кэше Docker) | `terraform apply`, `measurements/raw/tf-apply-2.log` |
 | Подъём всего стенда до работающего магазина | — | _после публикации образов CI: `make up`_ | `measurements/bootstrap.csv` |
-| Lead time: коммит → прод | _`legacy/stopwatch.sh`_ | _после первых релизов CI: `make dora`_ | `scripts/dora.sh` |
+| Lead time: коммит → staging (выкачено, smoke-тест пройден) | _`legacy/stopwatch.sh`_ | **344 с** — один релиз `sha-0699e29`: CI 86 с, остальное — опрос Git в ArgoCD, выкатка и smoke-тест | `make dora` (`scripts/dora.sh`) |
+| Lead time: коммит → prod | _`legacy/stopwatch.sh`_ | _не замерен: promote запускается вручную_ | `make dora` |
 | p95 главной магазина (найденный инцидент) | 4.02 с | **0.021 с** | [постмортем 00](postmortems/00-dns-metadata-lookup.md) |
 | Обнаружение аварий (MTTD) | _по условию задачи: от клиентов (не замер)_ | **111–141 с** в 5 прогонах сценариев 02, 03, 04; Kafka lag (05) — **276 и 685 с**, зависит от потока заказов | `measurements/chaos-results.csv` |
 | Восстановление (MTTR) | _по условию задачи: ~1 ч (не замер)_ | **17–304 с** в 6 чистых прогонах из 9. В первых прогонах 03, 04 и 05 — **12.5–21 мин**: каждый раз подвёл наш собственный инструмент восстановления (постмортемы [03](postmortems/03-bad-release.md), [04](postmortems/04-redis-disk-full.md), [05](postmortems/05-kafka-consumer-lag.md)) | `measurements/chaos-results.csv` |
